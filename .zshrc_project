@@ -1,0 +1,20 @@
+# Настройки окружения для проекта team-bot
+
+# Автоматическая активация виртуального окружения при входе в директорию
+if [[ "$PWD" == "/Users/alexeyvoytin/Documents/team-bot"* ]]; then
+    if [[ -z "$VIRTUAL_ENV" ]] && [[ -d "/Users/alexeyvoytin/Documents/team-bot/.venv" ]]; then
+        source /Users/alexeyvoytin/Documents/team-bot/.venv/bin/activate
+        echo "🐍 Виртуальное окружение активировано автоматически"
+    fi
+    
+    # Загрузка переменных окружения
+    if [[ -f "/Users/alexeyvoytin/Documents/team-bot/.env" ]]; then
+        export $(cat /Users/alexeyvoytin/Documents/team-bot/.env | grep -v '^#' | grep -v '^$' | xargs)
+        echo "🔧 Переменные окружения загружены"
+    fi
+fi
+
+# Алиасы для удобства работы
+alias activate_env="source /Users/alexeyvoytin/Documents/team-bot/load_env.sh"
+alias deactivate_env="deactivate"
+alias show_env="env | grep -E '(PYTHONPATH|DEBUG|ENV|SECRET_KEY)'"

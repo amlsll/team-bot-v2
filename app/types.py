@@ -1,0 +1,51 @@
+"""
+Модели данных для Telegram-бота комплектовщика команд.
+"""
+
+from typing import TypedDict, List, Dict, Literal, Optional
+
+Status = Literal['waiting', 'teamed', 'registering', 'asking_question']
+
+
+class User(TypedDict, total=False):
+    """Модель пользователя."""
+    tg_id: int
+    username: Optional[str]  # username из Telegram
+    name: Optional[str]      # автоматически из Telegram
+    full_name: Optional[str] # введенное пользователем "Имя Фамилия"
+    telegram_link: Optional[str]  # введенная пользователем ссылка на Telegram
+    status: Status
+    team_id: Optional[str]
+    registration_step: Optional[str]  # для отслеживания этапа регистрации
+
+
+class Team(TypedDict):
+    """Модель команды."""
+    id: str  # "C-12"
+    members: List[int]  # порядок: 1-й — капитан
+    created_at: str
+    status: Literal['active', 'archived']
+
+
+class Question(TypedDict):
+    """Модель вопроса от пользователя."""
+    id: str
+    user_id: int
+    username: Optional[str]
+    text: str
+    created_at: str
+    answered: bool
+    answer: Optional[str]
+    answered_by: Optional[int]
+    answered_at: Optional[str]
+
+
+class Store(TypedDict):
+    """Главная модель хранилища данных."""
+    users: Dict[int, User]
+    queue: List[int]
+    teams: Dict[str, Team]
+    counters: Dict[str, int]  # {"teamSeq": 0}
+    admins: Dict[int, bool]
+    questions: Dict[str, Question]  # вопросы от пользователей
+    next_match_time: Optional[str]  # время следующего автоматического объединения
