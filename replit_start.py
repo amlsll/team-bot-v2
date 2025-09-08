@@ -34,19 +34,36 @@ if replit_domain:
 else:
     logger.warning("⚠️ REPLIT_DEV_DOMAIN не найден, webhook URL может быть не установлен")
 
-# Импортируем и запускаем основной модуль напрямую
+# Импортируем и запускаем webhook сервер напрямую
 if __name__ == '__main__':
-    # Запускаем app.__main__ напрямую, все переменные уже установлены
     import asyncio
-    from app.__main__ import main as bot_main
+    from aiohttp import web
+    from app.__main__ import webhook_main
     
-    # Создаем новый event loop для webhook
-    try:
-        asyncio.run(bot_main())
-    except RuntimeError as e:
-        if "Cannot run the event loop while another loop is running" in str(e):
-            # Если event loop уже запущен, запускаем в существующем
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(bot_main())
-        else:
+    async def run_webhook_server():
+        """Запуск webhook сервера для Replit."""
+        try:
+            logger.info("🌐 Запуск webhook сервера...")
+            app, port = await webhook_main()
+            logger.info(f"✅ Webhook сервер готов на порту {port}")
+            
+            # Запускаем сервер
+            runner = web.AppRunner(app)
+            await runner.setup()
+            
+            site = web.TCPSite(runner, '0.0.0.0', port)
+            await site.start()
+            
+            logger.info(f"🚀 Сервер запущен на 0.0.0.0:{port}")
+            logger.info("🔄 Ожидание webhook запросов...")
+            
+            # Ждем бесконечно
+            while True:
+                await asyncio.sleep(3600)  # Спим по часу
+                
+        except Exception as e:
+            logger.error(f"❌ Ошибка webhook сервера: {e}")
             raise
+    
+    # Запускаем сервер
+    asyncio.run(run_webhook_server())
