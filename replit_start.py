@@ -79,12 +79,28 @@ async def main():
         # Настраиваем окружение для Replit
         webhook_url = setup_replit_environment()
         
-        # Запускаем бота через основной модуль
-        from app.__main__ import main as app_main
+        # Запускаем webhook сервер напрямую для избежания конфликтов event loop
+        from aiohttp import web
+        from app.__main__ import webhook_main
         
-        logger.info("✅ Все настройки корректны, запускаем бота...")
-        await app_main()
+        logger.info("🌐 Создание webhook сервера...")
+        app, port = await webhook_main()
+        logger.info(f"✅ Webhook сервер готов на порту {port}")
         
+        # Запускаем сервер без блокировки
+        runner = web.AppRunner(app)
+        await runner.setup()
+        
+        site = web.TCPSite(runner, '0.0.0.0', port)
+        await site.start()
+        
+        logger.info(f"🚀 Сервер запущен на 0.0.0.0:{port}")
+        logger.info("🔄 Ожидание webhook запросов...")
+        
+        # Ждем бесконечно
+        while True:
+            await asyncio.sleep(3600)  # Спим по часу
+            
     except KeyboardInterrupt:
         logger.info("🔴 Получен сигнал прерывания")
         return 0
