@@ -16,14 +16,14 @@
 В Replit перейдите в **Secrets** (🔒 иконка слева) и добавьте:
 
 ```bash
-# Обязательные переменные
+# Обязательные переменные (НЕ ПУБЛИКУЙТЕ РЕАЛЬНЫЕ ЗНАЧЕНИЯ!)
 BOT_TOKEN=ваш_токен_от_BotFather
 ADMIN_CODE=ваш_секретный_код_для_админов
 
 # Настройки автообновления
 AUTO_UPDATE_ENABLED=true
 UPDATE_BRANCH=main
-GITHUB_WEBHOOK_SECRET=d19fa3c3e6028491b89df9f62b7fd81117d93ddb73b70364ce224c451d4699ef
+GITHUB_WEBHOOK_SECRET=сгенерируйте_случайную_строку
 
 # Webhook режим для Replit
 USE_WEBHOOK=true
@@ -31,13 +31,15 @@ WEBHOOK_URL=https://ваш-repl-name.ваш-username.repl.co
 PORT=3000
 ```
 
+⚠️ **БЕЗОПАСНОСТЬ**: Никогда не добавляйте реальные токены и секреты в код!
+
 ### 3. Настройка GitHub webhook
 
 1. Перейдите в настройки репозитория: `Settings → Webhooks → Add webhook`
 2. Заполните поля:
    - **Payload URL**: `https://ваш-repl-name.ваш-username.repl.co/github-webhook`
    - **Content type**: `application/json`
-   - **Secret**: `d19fa3c3e6028491b89df9f62b7fd81117d93ddb73b70364ce224c451d4699ef`
+   - **Secret**: `тот_же_GITHUB_WEBHOOK_SECRET_из_Replit_Secrets`
    - **Events**: `Just the push event`
 3. Нажмите **Add webhook**
 

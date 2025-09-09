@@ -16,11 +16,11 @@ def check_replit_environment():
 def print_replit_secrets():
     """Выводит список секретов для настройки в Replit."""
     secrets = {
-        'BOT_TOKEN': 'Токен бота от @BotFather',
-        'ADMIN_CODE': 'Секретный код для админов',
+        'BOT_TOKEN': 'Ваш токен бота от @BotFather (НЕ ПУБЛИКУЙТЕ!)',
+        'ADMIN_CODE': 'Ваш секретный админ-код (НЕ ПУБЛИКУЙТЕ!)',
         'AUTO_UPDATE_ENABLED': 'true',
         'UPDATE_BRANCH': 'main',
-        'GITHUB_WEBHOOK_SECRET': 'd19fa3c3e6028491b89df9f62b7fd81117d93ddb73b70364ce224c451d4699ef',
+        'GITHUB_WEBHOOK_SECRET': 'Сгенерируйте случайную строку (НЕ ИСПОЛЬЗУЙТЕ ПРИМЕР!)',
         'USE_WEBHOOK': 'true',
         'WEBHOOK_URL': 'https://ваш-repl-name.ваш-username.repl.co',
         'PORT': '3000'
@@ -28,6 +28,7 @@ def print_replit_secrets():
     
     print("🔐 НАСТРОЙКА SECRETS В REPLIT:")
     print("Перейдите в Secrets (🔒 иконка слева) и добавьте:")
+    print("⚠️  ВАЖНО: Никогда не публикуйте эти значения в коде!")
     print()
     
     for key, value in secrets.items():
@@ -83,9 +84,10 @@ def print_github_webhook_instructions():
     print("3. Заполните поля:")
     print(f"   Payload URL: {webhook_url}")
     print("   Content type: application/json")
-    print("   Secret: d19fa3c3e6028491b89df9f62b7fd81117d93ddb73b70364ce224c451d4699ef")
+    print("   Secret: [ИСПОЛЬЗУЙТЕ ТОТ ЖЕ SECRET ИЗ REPLIT SECRETS!]")
     print("   Events: Just the push event")
     print("4. Нажмите Add webhook")
+    print("⚠️  ВАЖНО: Secret должен совпадать с GITHUB_WEBHOOK_SECRET в Replit!")
 
 
 def check_dependencies():
