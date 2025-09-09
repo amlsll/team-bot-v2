@@ -230,3 +230,7 @@ class Storage:
         """Получает вопрос по ID."""
         store = self.load()
         return store['questions'].get(question_id)
+
+
+# Глобальный экземпляр для использования в других модулях
+storage = Storage()

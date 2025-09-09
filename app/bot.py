@@ -15,16 +15,13 @@ from dotenv import load_dotenv
 # Загружаем переменные окружения
 load_dotenv()
 
-# Настройка детального логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('bot.log', encoding='utf-8')
-    ]
-)
-logger = logging.getLogger(__name__)
+# Инициализируем систему логирования
+from .services.logger import bot_logger, get_logger
+
+# Запускаем периодическое логирование метрик
+bot_logger.start_metrics_logging(interval=300)  # каждые 5 минут
+
+logger = get_logger('bot')
 
 # Получаем токен бота из переменных окружения
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -46,7 +43,7 @@ from .handlers import (
     user_start, user_status, user_leave,
     admin_core, admin_match, admin_stats,
     admin_rematch, admin_broadcast, admin_change, admin_questions, team_actions,
-    auto_update, admin_restart
+    auto_update, admin_restart, admin_monitoring
 )
 
 # Регистрируем роутеры обработчиков
@@ -61,11 +58,14 @@ dp.include_router(admin_rematch.router)
 dp.include_router(admin_broadcast.router)
 dp.include_router(admin_change.router)
 dp.include_router(admin_questions.router)
+dp.include_router(admin_monitoring.router)
 dp.include_router(auto_update.router)
 dp.include_router(admin_restart.router)
 
-# Подключаем middleware для обработки ошибок
-from .middlewares.error_handler import ErrorHandlerMiddleware
+# Подключаем middleware для обработки ошибок и мониторинга
+from .middlewares.error_handler import ErrorHandlerMiddleware, PerformanceMiddleware
+dp.message.middleware(PerformanceMiddleware(slow_threshold_ms=500))
+dp.callback_query.middleware(PerformanceMiddleware(slow_threshold_ms=500))
 dp.message.middleware(ErrorHandlerMiddleware())
 dp.callback_query.middleware(ErrorHandlerMiddleware())
 
@@ -138,6 +138,20 @@ async def on_startup():
         logger.error(f"❌ Ошибка запуска планировщика: {e}")
         # Продолжаем работу без планировщика
     
+    # Запускаем мониторинг здоровья
+    try:
+        from .services.health_monitor import health_monitor
+        health_monitor.bot = bot
+        
+        # Запускаем мониторинг в фоновом режиме
+        asyncio.create_task(health_monitor.start_monitoring())
+        
+        dp['health_monitor'] = health_monitor
+        logger.info("🏥 Мониторинг здоровья бота активирован")
+    except Exception as e:
+        logger.error(f"❌ Ошибка запуска мониторинга здоровья: {e}")
+        # Продолжаем работу без мониторинга
+    
     logger.info("🎉 Бот запущен и готов к работе!")
     logger.info("🔄 Ожидание сообщений...")
 
@@ -148,6 +162,11 @@ async def on_shutdown():
     scheduler = dp.get('scheduler')
     if scheduler:
         scheduler.stop()
+    
+    # Останавливаем мониторинг здоровья
+    health_monitor = dp.get('health_monitor')
+    if health_monitor:
+        health_monitor.stop_monitoring()
     
     logger.info("Бот остановлен")
 
