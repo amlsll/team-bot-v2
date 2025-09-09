@@ -249,7 +249,7 @@ async def callback_go_back(callback: CallbackQuery, state: FSMContext):
         
         # Если пользователь уже зарегистрирован
         if user and user.get('full_name') and user.get('telegram_link'):
-            if user['status'] == 'waiting':
+            if user.get('status') == 'waiting':
                 queue_count = len(storage.load()['queue'])
                 next_match_time = get_next_match_time()
                 text = JOIN_SUCCESS_TEXT.format(
@@ -264,7 +264,7 @@ async def callback_go_back(callback: CallbackQuery, state: FSMContext):
                 await message_manager.edit_and_store(callback, text, reply_markup=keyboard)
                 await callback.answer()
                 return
-            elif user['status'] == 'teamed':
+            elif user.get('status') == 'teamed':
                 await message_manager.edit_and_store(callback, "Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
                 await callback.answer()
                 return
@@ -516,7 +516,7 @@ async def show_registered_user_start_screen(callback_or_message, tg_id: int):
         # Пользователь не полностью зарегистрирован
         return False
     
-    if user['status'] == 'waiting':
+    if user.get('status') == 'waiting':
         # Проверяем, действительно ли пользователь в очереди
         in_queue = storage.get_queue_position(tg_id) != -1
         
@@ -541,7 +541,7 @@ async def show_registered_user_start_screen(callback_or_message, tg_id: int):
                 ("У меня есть вопрос", "ask_question")
             ], "go_back_to_start")
             await message_manager.edit_and_store(callback_or_message, SECOND_SCREEN_TEXT, reply_markup=keyboard)
-    elif user['status'] == 'teamed':
+    elif user.get('status') == 'teamed':
         # Пользователь уже в команде
         await message_manager.edit_and_store(callback_or_message, "Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
     else:
@@ -618,7 +618,7 @@ async def callback_leave(callback: CallbackQuery):
         
         # Проверяем, есть ли что покидать
         in_queue = storage.get_queue_position(tg_id) != -1
-        in_team = user['status'] == 'teamed' and user.get('team_id')
+        in_team = user.get('status') == 'teamed' and user.get('team_id')
         
         if not in_queue and not in_team:
             await callback.message.edit_text("Ты не в очереди и не в команде.")
