@@ -269,8 +269,8 @@ async def callback_go_back(callback: CallbackQuery, state: FSMContext):
                 return
         
         # Показываем главный экран с картинкой
-        # Отправляем картинку с приветственным текстом
-        photo_path = "attached_assets/Снимок экрана 2025-09-08 в 18.02.45_1757343767247.png"
+        # Отправляем правильную картинку МосВолонтёр
+        photo_path = "attached_assets/photo_2025-09-09 10.29.13_1757408967495.jpeg"
         
         # Создаем клавиатуру с кнопкой "Запустить бота"
         keyboard = nav.create_simple_keyboard_with_back([
