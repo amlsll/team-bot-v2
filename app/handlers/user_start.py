@@ -77,11 +77,54 @@ async def cmd_start(message: Message, state: FSMContext):
         return
     
     try:
+        logger.info(f"🔍 ОТЛАДКА: Пользователь {tg_id}, user={user}")
+        
+        # ВРЕМЕННО: Принудительно показываем новый интерфейс для всех пользователей
+        logger.info(f"🚀 ПРИНУДИТЕЛЬНО показываем новый интерфейс пользователю {tg_id}")
+        
+        # Показываем главный экран с картинкой и кнопкой "Запустить бота"
+        logger.info(f"📸 Отправляем картинку с кнопкой 'Запустить бота'")
+        
+        # Отправляем картинку с приветственным текстом
+        photo_path = "attached_assets/Снимок экрана 2025-09-08 в 18.02.45_1757343767247.png"
+        
+        # Создаем клавиатуру с кнопкой "Запустить бота"
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("Запустить бота", "start_bot"),
+            ("У меня есть вопрос", "ask_question")
+        ], None)  # Нет кнопки "Назад" на главном экране
+        
+        try:
+            # Пытаемся отправить фото
+            photo = FSInputFile(photo_path)
+            sent_message = await message.bot.send_photo(
+                chat_id=message.chat.id,
+                photo=photo,
+                caption=WELCOME_TEXT,
+                reply_markup=keyboard
+            )
+            message_manager.store_message(tg_id, sent_message.message_id)
+            logger.info(f"✅ Картинка отправлена успешно!")
+            return
+        except FileNotFoundError:
+            # Если картинка не найдена, отправляем только текст
+            logger.warning(f"⚠️ Картинка не найдена: {photo_path}")
+            await message_manager.send_and_store(message.bot, message.chat.id, WELCOME_TEXT, reply_markup=keyboard)
+            logger.info(f"✅ Текст отправлен без картинки")
+            return
+        except Exception as e:
+            logger.error(f"❌ Ошибка при отправке фото: {e}")
+            await message_manager.send_and_store(message.bot, message.chat.id, WELCOME_TEXT, reply_markup=keyboard)
+            logger.info(f"✅ Текст отправлен после ошибки с фото")
+            return
+        
+        # Старая логика (временно отключена)
+        """
         # Если пользователь уже зарегистрирован и находится в очереди или команде
         if user and user.get('full_name') and user.get('telegram_link'):
             logger.info(f"Пользователь {tg_id} уже зарегистрирован, статус: {user.get('status')}")
             
-            if user['status'] == 'waiting':
+            if user.get('status') == 'waiting':
                 # Проверяем, действительно ли пользователь в очереди
                 in_queue = storage.get_queue_position(tg_id) != -1
                 
@@ -108,36 +151,12 @@ async def cmd_start(message: Message, state: FSMContext):
                     ], "go_back_to_start")
                     await message_manager.send_and_store(message.bot, message.chat.id, SECOND_SCREEN_TEXT, reply_markup=keyboard)
                     return
-            elif user['status'] == 'teamed':
+            elif user.get('status') == 'teamed':
                 await message_manager.send_and_store(message.bot, message.chat.id, "Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
                 return
+        """
         
-        # Показываем главный экран с картинкой и кнопкой "Запустить бота"
-        logger.info(f"Показываем главный экран пользователю {tg_id}")
-        
-        # Отправляем картинку с приветственным текстом
-        photo_path = "attached_assets/Снимок экрана 2025-09-08 в 18.02.45_1757343767247.png"
-        
-        # Создаем клавиатуру с кнопкой "Запустить бота"
-        keyboard = nav.create_simple_keyboard_with_back([
-            ("Запустить бота", "start_bot"),
-            ("У меня есть вопрос", "ask_question")
-        ], None)  # Нет кнопки "Назад" на главном экране
-        
-        try:
-            # Пытаемся отправить фото
-            photo = FSInputFile(photo_path)
-            sent_message = await message.bot.send_photo(
-                chat_id=message.chat.id,
-                photo=photo,
-                caption=WELCOME_TEXT,
-                reply_markup=keyboard
-            )
-            message_manager.store_message(tg_id, sent_message.message_id)
-        except FileNotFoundError:
-            # Если картинка не найдена, отправляем только текст
-            logger.warning(f"Картинка не найдена: {photo_path}")
-            await message_manager.send_and_store(message.bot, message.chat.id, WELCOME_TEXT, reply_markup=keyboard)
+        # Эта часть кода теперь выше (принудительно показываем новый интерфейс)
         
     except Exception as e:
         logger.error(f"Ошибка в основной логике /start для {tg_id}: {e}")
