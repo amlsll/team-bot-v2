@@ -61,13 +61,14 @@ def setup_replit_environment():
             webhook_url = f"https://{repl_slug}.{repl_owner}.repl.co"
             logger.info(f"✅ Сгенерированный Webhook URL: {webhook_url}")
     
-    # Устанавливаем переменные окружения для webhook режима
-    os.environ['USE_WEBHOOK'] = 'true'
+    # ВРЕМЕННО: polling для тестирования нового интерфейса  
+    os.environ['USE_WEBHOOK'] = 'false'
     os.environ['WEBHOOK_URL'] = webhook_url
-    os.environ['PORT'] = '3000'
+    os.environ['PORT'] = '8080'
     
-    logger.info(f"✅ Режим: webhook")
-    logger.info(f"✅ Port: 3000")
+    use_webhook_display = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
+    logger.info(f"✅ Режим: {'webhook' if use_webhook_display else 'polling'}")
+    logger.info(f"✅ Port: {os.environ.get('PORT', '3000')}")
     
     return webhook_url
 
@@ -79,27 +80,32 @@ async def main():
         # Настраиваем окружение для Replit
         webhook_url = setup_replit_environment()
         
-        # Запускаем webhook сервер напрямую для избежания конфликтов event loop
-        from aiohttp import web
-        from app.__main__ import webhook_main
+        # Проверяем режим работы
+        use_webhook = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
         
-        logger.info("🌐 Создание webhook сервера...")
-        app, port = await webhook_main()
-        logger.info(f"✅ Webhook сервер готов на порту {port}")
-        
-        # Запускаем сервер без блокировки (НЕ используем web.run_app!)
-        runner = web.AppRunner(app)
-        await runner.setup()
-        
-        site = web.TCPSite(runner, '0.0.0.0', port)
-        await site.start()
-        
-        logger.info(f"🚀 Webhook сервер запущен на 0.0.0.0:{port}")
-        logger.info("🔄 Ожидание webhook запросов...")
-        
-        # Ждем бесконечно
-        while True:
-            await asyncio.sleep(3600)  # Спим по часу
+        if use_webhook:
+            logger.info("🌐 Запуск в webhook режиме...")
+            # Запускаем webhook сервер  
+            from aiohttp import web
+            from app.__main__ import webhook_main
+            
+            app, port = await webhook_main()
+            runner = web.AppRunner(app)
+            await runner.setup()
+            
+            site = web.TCPSite(runner, '0.0.0.0', port)
+            await site.start()
+            
+            logger.info(f"🚀 Webhook сервер запущен на 0.0.0.0:{port}")
+            
+            # Ждем бесконечно
+            while True:
+                await asyncio.sleep(3600)
+        else:
+            logger.info("📡 Запуск в polling режиме...")
+            # Запускаем в polling режиме
+            from app.__main__ import polling_main
+            await polling_main()
             
     except KeyboardInterrupt:
         logger.info("🔴 Получен сигнал прерывания")

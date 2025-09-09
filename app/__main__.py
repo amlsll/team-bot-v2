@@ -47,6 +47,13 @@ async def webhook_main():
     from .handlers.auto_update import setup_github_webhook
     setup_github_webhook(app, "/github-webhook")
     
+    # Добавляем health check endpoint для Replit
+    async def health_check(request):
+        return web.json_response({"status": "ok", "bot": "@mosvolteambot", "mode": "webhook"})
+    
+    app.router.add_get("/", health_check)
+    app.router.add_get("/health", health_check)
+    
     # Настраиваем приложение
     setup_application(app, dp, bot=bot)
     
