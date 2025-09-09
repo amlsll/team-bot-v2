@@ -4,7 +4,7 @@
 
 import logging
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -126,14 +126,14 @@ async def cmd_start(message: Message, state: FSMContext):
         
         try:
             # Пытаемся отправить фото
-            with open(photo_path, 'rb') as photo:
-                sent_message = await message.bot.send_photo(
-                    chat_id=message.chat.id,
-                    photo=photo,
-                    caption=WELCOME_TEXT,
-                    reply_markup=keyboard
-                )
-                message_manager.store_message(tg_id, sent_message.message_id)
+            photo = FSInputFile(photo_path)
+            sent_message = await message.bot.send_photo(
+                chat_id=message.chat.id,
+                photo=photo,
+                caption=WELCOME_TEXT,
+                reply_markup=keyboard
+            )
+            message_manager.store_message(tg_id, sent_message.message_id)
         except FileNotFoundError:
             # Если картинка не найдена, отправляем только текст
             logger.warning(f"Картинка не найдена: {photo_path}")
@@ -280,11 +280,11 @@ async def callback_go_back(callback: CallbackQuery, state: FSMContext):
         
         try:
             # Удаляем текущее сообщение и отправляем новое с фото
-            if callback.message:
+            if callback.message and callback.message.chat:
                 await callback.bot.delete_message(callback.message.chat.id, callback.message.message_id)
-            
-            # Пытаемся отправить фото
-            with open(photo_path, 'rb') as photo:
+                
+                # Пытаемся отправить фото
+                photo = FSInputFile(photo_path)
                 sent_message = await callback.bot.send_photo(
                     chat_id=callback.message.chat.id,
                     photo=photo,
@@ -303,6 +303,7 @@ async def callback_go_back(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         
     except Exception as e:
+        tg_id = callback.from_user.id if callback.from_user else 0
         logger.error(f"Ошибка при возврате к началу для {tg_id}: {e}")
         await callback.answer("Произошла ошибка. Попробуйте /start", show_alert=True)
 
