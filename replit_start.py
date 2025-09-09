@@ -87,14 +87,14 @@ async def main():
         app, port = await webhook_main()
         logger.info(f"✅ Webhook сервер готов на порту {port}")
         
-        # Запускаем сервер без блокировки
+        # Запускаем сервер без блокировки (НЕ используем web.run_app!)
         runner = web.AppRunner(app)
         await runner.setup()
         
         site = web.TCPSite(runner, '0.0.0.0', port)
         await site.start()
         
-        logger.info(f"🚀 Сервер запущен на 0.0.0.0:{port}")
+        logger.info(f"🚀 Webhook сервер запущен на 0.0.0.0:{port}")
         logger.info("🔄 Ожидание webhook запросов...")
         
         # Ждем бесконечно

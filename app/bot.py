@@ -5,6 +5,7 @@
 import os
 import asyncio
 import logging
+import os
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -78,13 +79,19 @@ async def on_startup():
     
     logger.info("🚀 Запуск бота...")
     
-    # Проверяем и очищаем webhook если необходимо
+    # Проверяем webhook только в polling режиме
+    use_webhook = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
+    
     try:
         webhook_info = await bot.get_webhook_info()
-        if webhook_info.url:
-            logger.info(f"Обнаружен активный webhook: {webhook_info.url}")
+        if webhook_info.url and not use_webhook:
+            logger.info(f"Обнаружен активный webhook в polling режиме: {webhook_info.url}")
             await bot.delete_webhook()
             logger.info("Webhook удален для polling режима")
+        elif webhook_info.url and use_webhook:
+            logger.info(f"✅ Webhook активен: {webhook_info.url}")
+        elif use_webhook:
+            logger.info("⚠️ Webhook режим, но URL не установлен (устанавливается в webhook_main)")
     except Exception as e:
         logger.warning(f"Ошибка при проверке webhook: {e}")
     
