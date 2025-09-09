@@ -133,7 +133,19 @@ async def callback_start_bot(callback: CallbackQuery):
         ("Присоединиться", "start_registration"),
         ("У меня есть вопрос", "ask_question")
     ], "go_back_to_start")
-    await message_manager.edit_and_store(callback, SECOND_SCREEN_TEXT, reply_markup=keyboard)
+    
+    # Удаляем старое сообщение с картинкой и отправляем новое текстовое
+    try:
+        await callback.message.delete()
+        sent_message = await callback.bot.send_message(
+            chat_id=callback.message.chat.id,
+            text=SECOND_SCREEN_TEXT,
+            reply_markup=keyboard
+        )
+        message_manager.store_message(callback.from_user.id, sent_message.message_id)
+    except Exception as e:
+        logger.error(f"Ошибка при переходе ко второму экрану: {e}")
+        
     await callback.answer()
 
 
@@ -189,7 +201,19 @@ async def callback_ask_question(callback: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="Написать вопрос", callback_data="write_question")],
         [InlineKeyboardButton(text="Назад", callback_data="go_back")]
     ])
-    await message_manager.edit_and_store(callback, QUESTION_INFO_TEXT, reply_markup=keyboard)
+    
+    # Удаляем старое сообщение с картинкой и отправляем новое текстовое
+    try:
+        await callback.message.delete()
+        sent_message = await callback.bot.send_message(
+            chat_id=callback.message.chat.id,
+            text=QUESTION_INFO_TEXT,
+            reply_markup=keyboard
+        )
+        message_manager.store_message(callback.from_user.id, sent_message.message_id)
+    except Exception as e:
+        logger.error(f"Ошибка при переходе к вопросам: {e}")
+        
     await callback.answer()
 
 
