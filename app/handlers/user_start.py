@@ -186,7 +186,9 @@ async def callback_start_registration(callback: CallbackQuery, state: FSMContext
         return
     
     # Пользователь не зарегистрирован, начинаем процесс регистрации
+    logger.info(f"🏁 Начинаем регистрацию для пользователя {tg_id}")
     await state.set_state(RegistrationStates.waiting_full_name)
+    logger.info(f"🔄 Состояние установлено на waiting_full_name для пользователя {tg_id}")
     keyboard = nav.create_keyboard_with_back([], "go_back_from_registration")
     await message_manager.edit_and_store(callback, REGISTRATION_START_TEXT, reply_markup=keyboard)
     await callback.answer()
@@ -344,46 +346,6 @@ async def callback_go_back_from_registration(callback: CallbackQuery, state: FSM
         await callback.answer("Произошла ошибка. Попробуйте /start", show_alert=True)
 
 
-@router.message()
-async def handle_any_message(message: Message, state: FSMContext):
-    """
-    Обработчик любых сообщений от пользователя. 
-    Для новых пользователей автоматически показывает стартовый экран.
-    """
-    if not message.from_user or not message.text:
-        return
-    
-    # Пропускаем сообщения в состояниях (регистрация, вопросы)
-    current_state = await state.get_state()
-    if current_state:
-        return
-    
-    # Пропускаем команды (они обрабатываются отдельно)
-    if message.text.startswith('/'):
-        return
-    
-    tg_id = message.from_user.id
-    storage = Storage()
-    user = storage.get_user(tg_id)
-    
-    try:
-        # Если пользователь не зарегистрирован - НЕ показываем экран, а перенаправляем на /start
-        if not user:
-            logger.info(f"👋 Новый пользователь {tg_id}, перенаправляем на /start")
-            
-            # Просим использовать /start для начала работы
-            await message_manager.send_and_store(message.bot, message.chat.id, 
-                "Привет! Для начала работы с ботом используй команду /start")
-        else:
-            # Для зарегистрированных пользователей предлагаем использовать команды или кнопки
-            await message_manager.send_and_store(message.bot, message.chat.id, 
-                "Используй команду /start для работы с ботом или /status для проверки статуса.")
-                
-    except Exception as e:
-        logger.error(f"Ошибка при обработке сообщения от {tg_id}: {e}")
-        await message.reply("Произошла ошибка. Используй /start для работы с ботом.")
-
-
 @router.message(QuestionStates.waiting_question)
 async def process_question(message: Message, state: FSMContext):
     """Обработка ввода вопроса."""
@@ -408,6 +370,12 @@ async def process_question(message: Message, state: FSMContext):
 @router.message(RegistrationStates.waiting_full_name)
 async def process_full_name(message: Message, state: FSMContext):
     """Обработка ввода имени и фамилии."""
+    if not message.from_user:
+        return
+        
+    tg_id = message.from_user.id
+    logger.info(f"👤 Обработка ввода имени от пользователя {tg_id}: '{message.text}'")
+    
     if not message.text:
         await message_manager.answer_and_store(message, "Пожалуйста, введи свои Имя и Фамилию текстом.")
         return
@@ -418,6 +386,7 @@ async def process_full_name(message: Message, state: FSMContext):
         await message_manager.answer_and_store(message, "Пожалуйста, введи и Имя, и Фамилию (два слова минимум).")
         return
     
+    logger.info(f"✅ Имя принято для пользователя {tg_id}, переход к вводу Telegram")
     await state.update_data(full_name=message.text.strip())
     await state.set_state(RegistrationStates.waiting_telegram_link)
     await message_manager.answer_and_store(message, TELEGRAM_LINK_TEXT)
@@ -426,6 +395,12 @@ async def process_full_name(message: Message, state: FSMContext):
 @router.message(RegistrationStates.waiting_telegram_link)
 async def process_telegram_link(message: Message, state: FSMContext):
     """Обработка ввода ссылки на Telegram."""
+    if not message.from_user:
+        return
+        
+    tg_id = message.from_user.id
+    logger.info(f"🔗 Обработка ввода Telegram ссылки от пользователя {tg_id}: '{message.text}'")
+    
     if not message.text:
         await message_manager.answer_and_store(message, "Пожалуйста, введи ссылку на свой Telegram.")
         return
@@ -440,6 +415,8 @@ async def process_telegram_link(message: Message, state: FSMContext):
     # Получаем сохраненные данные
     data = await state.get_data()
     full_name = data.get('full_name')
+    
+    logger.info(f"✅ Telegram ссылка принята для пользователя {tg_id}, показываем подтверждение")
     
     # Показываем данные для подтверждения
     confirmation_text = f"""Проверь введенные данные:
@@ -656,3 +633,43 @@ async def callback_leave(callback: CallbackQuery):
 
 # Удалены дублирующие хендлеры leave_confirm и leave_cancel
 # Они обрабатываются в user_leave.py
+
+
+# ОБЩИЙ ОБРАБОТЧИК СООБЩЕНИЙ - ДОЛЖЕН БЫТЬ ПОСЛЕДНИМ!
+@router.message(~F.text.startswith('/'))
+async def handle_any_message(message: Message, state: FSMContext):
+    """
+    Обработчик любых НЕ-командных сообщений от пользователя. 
+    Для новых пользователей автоматически показывает стартовый экран.
+    ВАЖНО: Этот обработчик должен быть зарегистрирован ПОСЛЕДНИМ, 
+    чтобы не перехватывать сообщения, предназначенные для обработчиков состояний FSM.
+    """
+    if not message.from_user or not message.text:
+        return
+    
+    # КРИТИЧЕСКИ ВАЖНО: Пропускаем сообщения в состояниях (регистрация, вопросы)
+    current_state = await state.get_state()
+    if current_state:
+        logger.debug(f"Пропускаем сообщение от {message.from_user.id} - пользователь в состоянии {current_state}")
+        return
+    
+    tg_id = message.from_user.id
+    storage = Storage()
+    user = storage.get_user(tg_id)
+    
+    try:
+        # Если пользователь не зарегистрирован - НЕ показываем экран, а перенаправляем на /start
+        if not user:
+            logger.info(f"👋 Новый пользователь {tg_id}, перенаправляем на /start")
+            
+            # Просим использовать /start для начала работы
+            await message_manager.send_and_store(message.bot, message.chat.id, 
+                "Привет! Для начала работы с ботом используй команду /start")
+        else:
+            # Для зарегистрированных пользователей предлагаем использовать команды или кнопки
+            await message_manager.send_and_store(message.bot, message.chat.id, 
+                "Используй команду /start для работы с ботом или /status для проверки статуса.")
+                
+    except Exception as e:
+        logger.error(f"Ошибка при обработке сообщения от {tg_id}: {e}")
+        await message.reply("Произошла ошибка. Используй /start для работы с ботом.")
