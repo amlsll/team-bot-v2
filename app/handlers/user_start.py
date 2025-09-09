@@ -79,14 +79,11 @@ async def cmd_start(message: Message, state: FSMContext):
     try:
         logger.info(f"🔍 ОТЛАДКА: Пользователь {tg_id}, user={user}")
         
-        # ВРЕМЕННО: Принудительно показываем новый интерфейс для всех пользователей
-        logger.info(f"🚀 ПРИНУДИТЕЛЬНО показываем новый интерфейс пользователю {tg_id}")
-        
         # Показываем главный экран с картинкой и кнопкой "Запустить бота"
-        logger.info(f"📸 Отправляем картинку с кнопкой 'Запустить бота'")
+        logger.info(f"📸 Показываем главный экран с новой картинкой пользователю {tg_id}")
         
-        # Отправляем картинку с приветственным текстом
-        photo_path = "attached_assets/Снимок экрана 2025-09-08 в 18.02.45_1757343767247.png"
+        # Используем правильную картинку
+        photo_path = "attached_assets/photo_2025-09-09 10.29.13_1757408967495.jpeg"
         
         # Создаем клавиатуру с кнопкой "Запустить бота"
         keyboard = nav.create_simple_keyboard_with_back([
@@ -104,7 +101,7 @@ async def cmd_start(message: Message, state: FSMContext):
                 reply_markup=keyboard
             )
             message_manager.store_message(tg_id, sent_message.message_id)
-            logger.info(f"✅ Картинка отправлена успешно!")
+            logger.info(f"✅ Новая картинка отправлена успешно!")
             return
         except FileNotFoundError:
             # Если картинка не найдена, отправляем только текст
@@ -117,46 +114,6 @@ async def cmd_start(message: Message, state: FSMContext):
             await message_manager.send_and_store(message.bot, message.chat.id, WELCOME_TEXT, reply_markup=keyboard)
             logger.info(f"✅ Текст отправлен после ошибки с фото")
             return
-        
-        # Старая логика (временно отключена)
-        """
-        # Если пользователь уже зарегистрирован и находится в очереди или команде
-        if user and user.get('full_name') and user.get('telegram_link'):
-            logger.info(f"Пользователь {tg_id} уже зарегистрирован, статус: {user.get('status')}")
-            
-            if user.get('status') == 'waiting':
-                # Проверяем, действительно ли пользователь в очереди
-                in_queue = storage.get_queue_position(tg_id) != -1
-                
-                if in_queue:
-                    # Пользователь в очереди - показываем экран ожидания
-                    queue_count = len(storage.load()['queue'])
-                    next_match_time = get_next_match_time()
-                    text = JOIN_SUCCESS_TEXT.format(
-                        queue_count=queue_count,
-                        next_match_time=next_match_time
-                    )
-                    keyboard = nav.create_simple_keyboard_with_back([
-                        ("Проверить статус ожидания", "status"),
-                        ("Выйти из ожидания объединения", "leave"),
-                        ("У меня есть вопрос", "ask_question")
-                    ], "go_back_to_start")
-                    await message_manager.send_and_store(message.bot, message.chat.id, text, reply_markup=keyboard)
-                    return
-                else:
-                    # Пользователь зарегистрирован, но не в очереди - показываем экран с возможностью присоединиться
-                    keyboard = nav.create_simple_keyboard_with_back([
-                        ("Присоединиться", "start_registration"),
-                        ("У меня есть вопрос", "ask_question")
-                    ], "go_back_to_start")
-                    await message_manager.send_and_store(message.bot, message.chat.id, SECOND_SCREEN_TEXT, reply_markup=keyboard)
-                    return
-            elif user.get('status') == 'teamed':
-                await message_manager.send_and_store(message.bot, message.chat.id, "Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
-                return
-        """
-        
-        # Эта часть кода теперь выше (принудительно показываем новый интерфейс)
         
     except Exception as e:
         logger.error(f"Ошибка в основной логике /start для {tg_id}: {e}")
