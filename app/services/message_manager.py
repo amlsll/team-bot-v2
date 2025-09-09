@@ -75,11 +75,15 @@ class MessageManager:
         except Exception as e:
             logger.error(f"Ошибка при очистке сообщений пользователя {user_id}: {e}")
     
-    async def delete_previous_messages(self, bot, user_id: int, chat_id: int) -> None:
+    async def delete_previous_messages(self, bot, user_id: int, chat_id: int, exclude_message_id: Optional[int] = None) -> None:
         """Удаляет все предыдущие сообщения бота для пользователя."""
         message_ids = self.get_user_messages(user_id)
         
         for message_id in message_ids:
+            # Пропускаем сообщение, которое исключено
+            if exclude_message_id and message_id == exclude_message_id:
+                continue
+                
             try:
                 await bot.delete_message(chat_id, message_id)
                 logger.debug(f"Удалено сообщение {message_id} для пользователя {user_id}")
@@ -87,17 +91,25 @@ class MessageManager:
                 # Игнорируем ошибки удаления (сообщение может быть уже удалено)
                 logger.debug(f"Не удалось удалить сообщение {message_id} для пользователя {user_id}: {e}")
         
-        # Очищаем список после удаления
-        self.clear_user_messages(user_id)
+        # Очищаем список после удаления (кроме исключенного сообщения)
+        if exclude_message_id:
+            # Сохраняем только исключенное сообщение
+            store = self.storage.load()
+            key = self._get_user_messages_key(user_id)
+            if 'user_messages' in store and key in store['user_messages']:
+                store['user_messages'][key] = [exclude_message_id]
+                self.storage.save(store)
+        else:
+            self.clear_user_messages(user_id)
     
     async def send_and_store(self, bot, chat_id: int, text: str, **kwargs) -> Optional[Message]:
         """Отправляет сообщение и сохраняет его ID для последующего удаления."""
         try:
-            # Удаляем предыдущие сообщения
-            await self.delete_previous_messages(bot, chat_id, chat_id)
-            
             # Отправляем новое сообщение
             message = await bot.send_message(chat_id, text, **kwargs)
+            
+            # Удаляем предыдущие сообщения (кроме только что отправленного)
+            await self.delete_previous_messages(bot, chat_id, chat_id, exclude_message_id=message.message_id)
             
             # Сохраняем ID нового сообщения
             self.store_message(chat_id, message.message_id)
@@ -125,9 +137,11 @@ class MessageManager:
                 # Обновляем ID сообщения в хранилище (если user_id доступен)
                 if user_id:
                     # Удаляем старые сообщения кроме текущего
-                    await self.delete_previous_messages(message_or_callback.bot, user_id, chat_id)
-                    # Сохраняем ID текущего сообщения
-                    self.store_message(user_id, edited_message.message_id)
+                    await self.delete_previous_messages(message_or_callback.bot, user_id, chat_id, exclude_message_id=edited_message.message_id)
+                    # Сохраняем ID текущего сообщения (если его еще нет)
+                    current_messages = self.get_user_messages(user_id)
+                    if edited_message.message_id not in current_messages:
+                        self.store_message(user_id, edited_message.message_id)
                 
                 return edited_message
                 
@@ -142,9 +156,11 @@ class MessageManager:
                 # Обновляем ID сообщения в хранилище (если user_id доступен)
                 if user_id:
                     # Удаляем старые сообщения кроме текущего
-                    await self.delete_previous_messages(message_or_callback.bot, user_id, chat_id)
-                    # Сохраняем ID текущего сообщения
-                    self.store_message(user_id, edited_message.message_id)
+                    await self.delete_previous_messages(message_or_callback.bot, user_id, chat_id, exclude_message_id=edited_message.message_id)
+                    # Сохраняем ID текущего сообщения (если его еще нет)
+                    current_messages = self.get_user_messages(user_id)
+                    if edited_message.message_id not in current_messages:
+                        self.store_message(user_id, edited_message.message_id)
                 
                 return edited_message
                 

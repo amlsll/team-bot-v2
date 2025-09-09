@@ -31,14 +31,17 @@ class NavigationService:
     @staticmethod
     def create_simple_keyboard_with_back(
         text_callback_pairs: List[tuple], 
-        back_callback: str = "go_back"
+        back_callback: Optional[str] = "go_back"
     ) -> InlineKeyboardMarkup:
         """Создает простую клавиатуру из пар (текст, callback) с кнопкой 'Назад'."""
         buttons = []
         for text, callback in text_callback_pairs:
             buttons.append([InlineKeyboardButton(text=text, callback_data=callback)])
         
-        return NavigationService.create_keyboard_with_back(buttons, back_callback)
+        if back_callback:
+            return NavigationService.create_keyboard_with_back(buttons, back_callback)
+        else:
+            return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 # Глобальный экземпляр сервиса навигации

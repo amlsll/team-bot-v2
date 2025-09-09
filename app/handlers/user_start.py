@@ -57,7 +57,7 @@ QUESTION_SENT_TEXT = """Ваш вопрос отправлен организа�
 async def cmd_start(message: Message, state: FSMContext):
     """Обработчик команды /start."""
     if not message.from_user:
-        logger.warning("Ополучена команда /start без информации о пользователе")
+        logger.warning("Получена команда /start без информации о пользователе")
         return
     
     tg_id = message.from_user.id
@@ -112,18 +112,32 @@ async def cmd_start(message: Message, state: FSMContext):
                 await message_manager.send_and_store(message.bot, message.chat.id, "Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
                 return
         
-        # Сразу показываем второй экран (без промежуточного "Запустить бота")
-        logger.info(f"Показываем стартовый экран пользователю {tg_id}")
+        # Показываем главный экран с картинкой и кнопкой "Запустить бота"
+        logger.info(f"Показываем главный экран пользователю {tg_id}")
         
-        # Сначала показываем приветственное сообщение
-        await message_manager.send_and_store(message.bot, message.chat.id, WELCOME_TEXT)
+        # Отправляем картинку с приветственным текстом
+        photo_path = "attached_assets/Снимок экрана 2025-09-08 в 18.02.45_1757343767247.png"
         
-        # Затем сразу показываем второй экран с функциональными кнопками
+        # Создаем клавиатуру с кнопкой "Запустить бота"
         keyboard = nav.create_simple_keyboard_with_back([
-            ("Присоединиться", "start_registration"),
+            ("Запустить бота", "start_bot"),
             ("У меня есть вопрос", "ask_question")
-        ], "go_back_to_start")
-        await message_manager.send_and_store(message.bot, message.chat.id, SECOND_SCREEN_TEXT, reply_markup=keyboard)
+        ], None)  # Нет кнопки "Назад" на главном экране
+        
+        try:
+            # Пытаемся отправить фото
+            with open(photo_path, 'rb') as photo:
+                sent_message = await message.bot.send_photo(
+                    chat_id=message.chat.id,
+                    photo=photo,
+                    caption=WELCOME_TEXT,
+                    reply_markup=keyboard
+                )
+                message_manager.store_message(tg_id, sent_message.message_id)
+        except FileNotFoundError:
+            # Если картинка не найдена, отправляем только текст
+            logger.warning(f"Картинка не найдена: {photo_path}")
+            await message_manager.send_and_store(message.bot, message.chat.id, WELCOME_TEXT, reply_markup=keyboard)
         
     except Exception as e:
         logger.error(f"Ошибка в основной логике /start для {tg_id}: {e}")
@@ -254,12 +268,38 @@ async def callback_go_back(callback: CallbackQuery, state: FSMContext):
                 await callback.answer()
                 return
         
-        # Показываем приветственный экран
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Запустить бота", callback_data="start_bot")],
-            [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-        ])
-        await message_manager.edit_and_store(callback, WELCOME_TEXT, reply_markup=keyboard)
+        # Показываем главный экран с картинкой
+        # Отправляем картинку с приветственным текстом
+        photo_path = "attached_assets/Снимок экрана 2025-09-08 в 18.02.45_1757343767247.png"
+        
+        # Создаем клавиатуру с кнопкой "Запустить бота"
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("Запустить бота", "start_bot"),
+            ("У меня есть вопрос", "ask_question")
+        ], None)  # Нет кнопки "Назад" на главном экране
+        
+        try:
+            # Удаляем текущее сообщение и отправляем новое с фото
+            if callback.message:
+                await callback.bot.delete_message(callback.message.chat.id, callback.message.message_id)
+            
+            # Пытаемся отправить фото
+            with open(photo_path, 'rb') as photo:
+                sent_message = await callback.bot.send_photo(
+                    chat_id=callback.message.chat.id,
+                    photo=photo,
+                    caption=WELCOME_TEXT,
+                    reply_markup=keyboard
+                )
+                message_manager.store_message(callback.from_user.id, sent_message.message_id)
+        except FileNotFoundError:
+            # Если картинка не найдена, отправляем только текст
+            logger.warning(f"Картинка не найдена: {photo_path}")
+            await message_manager.edit_and_store(callback, WELCOME_TEXT, reply_markup=keyboard)
+        except Exception as e:
+            # Если что-то пошло не так, используем обычное редактирование
+            logger.warning(f"Не удалось отправить фото, используем текст: {e}")
+            await message_manager.edit_and_store(callback, WELCOME_TEXT, reply_markup=keyboard)
         await callback.answer()
         
     except Exception as e:
@@ -607,3 +647,35 @@ async def callback_leave(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка при выходе из очереди: {e}")
         await callback.answer("Ошибка. Используйте /leave", show_alert=True)
+
+
+@router.callback_query(F.data == "leave_confirm")
+async def callback_leave_confirm_from_start(callback: CallbackQuery):
+    """Обработчик подтверждения выхода из кнопки в user_start."""
+    if not callback.from_user:
+        return
+    
+    try:
+        # Импортируем обработчик из user_leave
+        from .user_leave import callback_leave_confirm
+        await callback_leave_confirm(callback)
+        
+    except Exception as e:
+        logger.error(f"Ошибка при подтверждении выхода: {e}")
+        await callback.answer("Ошибка. Попробуйте еще раз", show_alert=True)
+
+
+@router.callback_query(F.data == "leave_cancel")
+async def callback_leave_cancel_from_start(callback: CallbackQuery):
+    """Обработчик отмены выхода из кнопки в user_start."""
+    if not callback.from_user:
+        return
+    
+    try:
+        # Импортируем обработчик из user_leave
+        from .user_leave import callback_leave_cancel
+        await callback_leave_cancel(callback)
+        
+    except Exception as e:
+        logger.error(f"Ошибка при отмене выхода: {e}")
+        await callback.answer("Ошибка. Попробуйте еще раз", show_alert=True)
