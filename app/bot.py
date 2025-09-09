@@ -43,7 +43,7 @@ from .handlers import (
     user_start, user_status, user_leave,
     admin_core, admin_match, admin_stats,
     admin_rematch, admin_broadcast, admin_change, admin_questions, team_actions,
-    auto_update, admin_restart, admin_monitoring
+    auto_update, admin_restart, admin_monitoring, fallback
 )
 
 # Регистрируем роутеры обработчиков
@@ -61,6 +61,8 @@ dp.include_router(admin_questions.router)
 dp.include_router(admin_monitoring.router)
 dp.include_router(auto_update.router)
 dp.include_router(admin_restart.router)
+# Fallback хендлер должен быть последним
+dp.include_router(fallback.router)
 
 # Подключаем middleware для обработки ошибок и мониторинга
 from .middlewares.error_handler import ErrorHandlerMiddleware, PerformanceMiddleware

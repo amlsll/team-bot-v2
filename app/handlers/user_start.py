@@ -654,33 +654,5 @@ async def callback_leave(callback: CallbackQuery):
         await callback.answer("Ошибка. Используйте /leave", show_alert=True)
 
 
-@router.callback_query(F.data == "leave_confirm")
-async def callback_leave_confirm_from_start(callback: CallbackQuery):
-    """Обработчик подтверждения выхода из кнопки в user_start."""
-    if not callback.from_user:
-        return
-    
-    try:
-        # Импортируем обработчик из user_leave
-        from .user_leave import callback_leave_confirm
-        await callback_leave_confirm(callback)
-        
-    except Exception as e:
-        logger.error(f"Ошибка при подтверждении выхода: {e}")
-        await callback.answer("Ошибка. Попробуйте еще раз", show_alert=True)
-
-
-@router.callback_query(F.data == "leave_cancel")
-async def callback_leave_cancel_from_start(callback: CallbackQuery):
-    """Обработчик отмены выхода из кнопки в user_start."""
-    if not callback.from_user:
-        return
-    
-    try:
-        # Импортируем обработчик из user_leave
-        from .user_leave import callback_leave_cancel
-        await callback_leave_cancel(callback)
-        
-    except Exception as e:
-        logger.error(f"Ошибка при отмене выхода: {e}")
-        await callback.answer("Ошибка. Попробуйте еще раз", show_alert=True)
+# Удалены дублирующие хендлеры leave_confirm и leave_cancel
+# Они обрабатываются в user_leave.py

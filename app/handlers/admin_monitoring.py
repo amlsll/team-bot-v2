@@ -10,17 +10,17 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 
-from ..services.acl import admin_required
+from ..services.acl import require_admin
 from ..services.logger import get_logger, get_metrics
 from ..services.health_monitor import health_monitor
-from ..services.navigation import create_pagination_keyboard
+# from ..services.navigation import create_pagination_keyboard
 
 logger = get_logger('admin_monitoring')
 router = Router()
 
 
 @router.message(Command("health"))
-@admin_required
+@require_admin
 async def cmd_health_check(message: Message):
     """Показывает состояние здоровья бота."""
     try:
@@ -70,9 +70,13 @@ async def cmd_health_check(message: Message):
 
 
 @router.callback_query(F.data == "health_refresh")
-@admin_required
 async def callback_health_refresh(callback: CallbackQuery):
     """Обновляет информацию о здоровье."""
+    from ..services.acl import is_admin
+    if not callback.from_user or not is_admin(callback.from_user.id):
+        await callback.answer("Нет прав доступа", show_alert=True)
+        return
+        
     await callback.answer("🔄 Обновляем информацию...")
     
     try:
@@ -119,9 +123,13 @@ async def callback_health_refresh(callback: CallbackQuery):
 
 
 @router.callback_query(F.data == "show_metrics")
-@admin_required
 async def callback_show_metrics(callback: CallbackQuery):
     """Показывает метрики производительности."""
+    from ..services.acl import is_admin
+    if not callback.from_user or not is_admin(callback.from_user.id):
+        await callback.answer("Нет прав доступа", show_alert=True)
+        return
+        
     await callback.answer()
     
     try:
@@ -176,9 +184,13 @@ async def callback_show_metrics(callback: CallbackQuery):
 
 
 @router.callback_query(F.data == "show_logs")
-@admin_required
 async def callback_show_logs(callback: CallbackQuery):
     """Показывает последние логи."""
+    from ..services.acl import is_admin
+    if not callback.from_user or not is_admin(callback.from_user.id):
+        await callback.answer("Нет прав доступа", show_alert=True)
+        return
+        
     await callback.answer()
     
     try:
@@ -226,9 +238,13 @@ async def callback_show_logs(callback: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("view_log_"))
-@admin_required
 async def callback_view_log(callback: CallbackQuery):
     """Показывает содержимое лога."""
+    from ..services.acl import is_admin
+    if not callback.from_user or not is_admin(callback.from_user.id):
+        await callback.answer("Нет прав доступа", show_alert=True)
+        return
+        
     await callback.answer()
     
     log_type = callback.data.split("_")[-1]
@@ -287,7 +303,7 @@ async def callback_view_log(callback: CallbackQuery):
 
 
 @router.message(Command("metrics"))
-@admin_required
+@require_admin
 async def cmd_metrics(message: Message):
     """Быстрый просмотр метрик."""
     try:
@@ -318,7 +334,7 @@ async def cmd_metrics(message: Message):
 
 
 @router.message(Command("logs"))
-@admin_required
+@require_admin
 async def cmd_logs(message: Message):
     """Показывает последние ошибки из логов."""
     try:
@@ -352,7 +368,7 @@ async def cmd_logs(message: Message):
 
 
 @router.message(Command("clear_logs"))
-@admin_required
+@require_admin
 async def cmd_clear_logs(message: Message):
     """Очищает старые логи."""
     try:
