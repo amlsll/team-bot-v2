@@ -6,6 +6,8 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from ..services.storage import Storage
+from ..services.message_manager import message_manager
+from ..services.navigation import nav
 
 router = Router()
 
@@ -31,8 +33,10 @@ async def callback_team_confirm(callback: CallbackQuery):
         await callback.answer("Ошибка: команда не найдена.", show_alert=True)
         return
     
-    await callback.message.edit_text(
-        "✅ Ты подтвердил участие в команде!\n\nОжидай связи от модератора для создания общего чата."
+    keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+    await message_manager.edit_and_store(callback,
+        "✅ Ты подтвердил участие в команде!\n\nОжидай связи от модератора для создания общего чата.",
+        reply_markup=keyboard
     )
     await callback.answer("Участие подтверждено!")
 
@@ -54,12 +58,12 @@ async def callback_team_decline(callback: CallbackQuery):
         return
     
     # Показываем варианты после отказа
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    keyboard = nav.create_keyboard_with_back([
         [InlineKeyboardButton(text="Вернуться в лист ожидания", callback_data=f"decline_return:{team_id}")],
         [InlineKeyboardButton(text="Выйти из ожидания", callback_data=f"decline_leave:{team_id}")]
-    ])
+    ], "go_back_to_start")
     
-    await callback.message.edit_text(
+    await message_manager.edit_and_store(callback,
         "Ты отказался от участия в команде.\n\nВыбери дальнейшее действие:",
         reply_markup=keyboard
     )
@@ -94,7 +98,8 @@ async def callback_decline_return(callback: CallbackQuery):
 
 Ближайшее объединение в команды произойдет {next_match_time}"""
     
-    await callback.message.edit_text(text)
+    keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+    await message_manager.edit_and_store(callback, text, reply_markup=keyboard)
     await callback.answer("Возвращен в лист ожидания!")
 
 
@@ -118,7 +123,9 @@ async def callback_decline_leave(callback: CallbackQuery):
     # Пока оставим в статусе waiting, но без очереди
     storage.set_user_status(tg_id, 'waiting', None)
     
-    await callback.message.edit_text(
-        "Ты вышел из ожидания объединения.\n\nДля повторного участия используй /start"
+    keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+    await message_manager.edit_and_store(callback,
+        "Ты вышел из ожидания объединения.\n\nДля повторного участия используй /start",
+        reply_markup=keyboard
     )
     await callback.answer("Вышел из ожидания!")

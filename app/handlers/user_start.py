@@ -10,6 +10,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from ..services.storage import Storage
+from ..services.message_manager import message_manager
+from ..services.navigation import nav
 
 logger = logging.getLogger(__name__)
 
@@ -91,32 +93,37 @@ async def cmd_start(message: Message, state: FSMContext):
                         queue_count=queue_count,
                         next_match_time=next_match_time
                     )
-                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="Проверить статус ожидания", callback_data="status")],
-                        [InlineKeyboardButton(text="Выйти из ожидания объединения", callback_data="leave")],
-                        [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-                    ])
-                    await message.answer(text, reply_markup=keyboard)
+                    keyboard = nav.create_simple_keyboard_with_back([
+                        ("Проверить статус ожидания", "status"),
+                        ("Выйти из ожидания объединения", "leave"),
+                        ("У меня есть вопрос", "ask_question")
+                    ], "go_back_to_start")
+                    await message_manager.send_and_store(message.bot, message.chat.id, text, reply_markup=keyboard)
                     return
                 else:
                     # Пользователь зарегистрирован, но не в очереди - показываем экран с возможностью присоединиться
-                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="Присоединиться", callback_data="start_registration")],
-                        [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-                    ])
-                    await message.answer(SECOND_SCREEN_TEXT, reply_markup=keyboard)
+                    keyboard = nav.create_simple_keyboard_with_back([
+                        ("Присоединиться", "start_registration"),
+                        ("У меня есть вопрос", "ask_question")
+                    ], "go_back_to_start")
+                    await message_manager.send_and_store(message.bot, message.chat.id, SECOND_SCREEN_TEXT, reply_markup=keyboard)
                     return
             elif user['status'] == 'teamed':
-                await message.answer("Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
+                await message_manager.send_and_store(message.bot, message.chat.id, "Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
                 return
         
-        # Показываем приветственный экран
-        logger.info(f"Показываем приветственный экран пользователю {tg_id}")
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Запустить бота", callback_data="start_bot")],
-            [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-        ])
-        await message.answer(WELCOME_TEXT, reply_markup=keyboard)
+        # Сразу показываем второй экран (без промежуточного "Запустить бота")
+        logger.info(f"Показываем стартовый экран пользователю {tg_id}")
+        
+        # Сначала показываем приветственное сообщение
+        await message_manager.send_and_store(message.bot, message.chat.id, WELCOME_TEXT)
+        
+        # Затем сразу показываем второй экран с функциональными кнопками
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("Присоединиться", "start_registration"),
+            ("У меня есть вопрос", "ask_question")
+        ], "go_back_to_start")
+        await message_manager.send_and_store(message.bot, message.chat.id, SECOND_SCREEN_TEXT, reply_markup=keyboard)
         
     except Exception as e:
         logger.error(f"Ошибка в основной логике /start для {tg_id}: {e}")
@@ -132,11 +139,11 @@ async def callback_start_bot(callback: CallbackQuery):
     if not callback.from_user:
         return
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Присоединиться", callback_data="start_registration")],
-        [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-    ])
-    await callback.message.edit_text(SECOND_SCREEN_TEXT, reply_markup=keyboard)
+    keyboard = nav.create_simple_keyboard_with_back([
+        ("Присоединиться", "start_registration"),
+        ("У меня есть вопрос", "ask_question")
+    ], "go_back_to_start")
+    await message_manager.edit_and_store(callback, SECOND_SCREEN_TEXT, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -165,19 +172,20 @@ async def callback_start_registration(callback: CallbackQuery, state: FSMContext
             next_match_time=next_match_time
         )
         
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Проверить статус ожидания", callback_data="status")],
-            [InlineKeyboardButton(text="Выйти из ожидания объединения", callback_data="leave")],
-            [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-        ])
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("Проверить статус ожидания", "status"),
+            ("Выйти из ожидания объединения", "leave"),
+            ("У меня есть вопрос", "ask_question")
+        ], "go_back_to_start")
         
-        await callback.message.edit_text(text, reply_markup=keyboard)
+        await message_manager.edit_and_store(callback, text, reply_markup=keyboard)
         await callback.answer("Добро пожаловать обратно в очередь! 👋")
         return
     
     # Пользователь не зарегистрирован, начинаем процесс регистрации
     await state.set_state(RegistrationStates.waiting_full_name)
-    await callback.message.edit_text(REGISTRATION_START_TEXT)
+    keyboard = nav.create_keyboard_with_back([], "go_back_from_registration")
+    await message_manager.edit_and_store(callback, REGISTRATION_START_TEXT, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -191,7 +199,7 @@ async def callback_ask_question(callback: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="Написать вопрос", callback_data="write_question")],
         [InlineKeyboardButton(text="Назад", callback_data="go_back")]
     ])
-    await callback.message.edit_text(QUESTION_INFO_TEXT, reply_markup=keyboard)
+    await message_manager.edit_and_store(callback, QUESTION_INFO_TEXT, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -202,11 +210,11 @@ async def callback_write_question(callback: CallbackQuery, state: FSMContext):
         return
     
     await state.set_state(QuestionStates.waiting_question)
-    await callback.message.edit_text(QUESTION_PROMPT_TEXT)
+    await message_manager.edit_and_store(callback, QUESTION_PROMPT_TEXT)
     await callback.answer()
 
 
-@router.callback_query(F.data == "go_back")
+@router.callback_query(F.data.in_(["go_back", "go_back_to_start"]))
 async def callback_go_back(callback: CallbackQuery, state: FSMContext):
     """Возврат к предыдущему экрану."""
     if not callback.from_user:
@@ -233,16 +241,16 @@ async def callback_go_back(callback: CallbackQuery, state: FSMContext):
                     queue_count=queue_count,
                     next_match_time=next_match_time
                 )
-                keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="Проверить статус ожидания", callback_data="status")],
-                    [InlineKeyboardButton(text="Выйти из ожидания объединения", callback_data="leave")],
-                    [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-                ])
-                await callback.message.edit_text(text, reply_markup=keyboard)
+                keyboard = nav.create_simple_keyboard_with_back([
+                    ("Проверить статус ожидания", "status"),
+                    ("Выйти из ожидания объединения", "leave"),
+                    ("У меня есть вопрос", "ask_question")
+                ], "go_back_to_start")
+                await message_manager.edit_and_store(callback, text, reply_markup=keyboard)
                 await callback.answer()
                 return
             elif user['status'] == 'teamed':
-                await callback.message.edit_text("Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
+                await message_manager.edit_and_store(callback, "Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
                 await callback.answer()
                 return
         
@@ -251,12 +259,84 @@ async def callback_go_back(callback: CallbackQuery, state: FSMContext):
             [InlineKeyboardButton(text="Запустить бота", callback_data="start_bot")],
             [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
         ])
-        await callback.message.edit_text(WELCOME_TEXT, reply_markup=keyboard)
+        await message_manager.edit_and_store(callback, WELCOME_TEXT, reply_markup=keyboard)
         await callback.answer()
         
     except Exception as e:
         logger.error(f"Ошибка при возврате к началу для {tg_id}: {e}")
         await callback.answer("Произошла ошибка. Попробуйте /start", show_alert=True)
+
+
+@router.callback_query(F.data == "go_back_from_registration")
+async def callback_go_back_from_registration(callback: CallbackQuery, state: FSMContext):
+    """Возврат из процесса регистрации."""
+    if not callback.from_user:
+        return
+    
+    try:
+        await state.clear()
+        
+        # Показываем второй экран (с кнопкой "Присоединиться")
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("Присоединиться", "start_registration"),
+            ("У меня есть вопрос", "ask_question")
+        ], "go_back_to_start")
+        
+        await message_manager.edit_and_store(callback, SECOND_SCREEN_TEXT, reply_markup=keyboard)
+        await callback.answer()
+        
+    except Exception as e:
+        logger.error(f"Ошибка при возврате из регистрации: {e}")
+        await callback.answer("Произошла ошибка. Попробуйте /start", show_alert=True)
+
+
+@router.message()
+async def handle_any_message(message: Message, state: FSMContext):
+    """
+    Обработчик любых сообщений от пользователя. 
+    Для новых пользователей автоматически показывает стартовый экран.
+    """
+    if not message.from_user or not message.text:
+        return
+    
+    # Пропускаем сообщения в состояниях (регистрация, вопросы)
+    current_state = await state.get_state()
+    if current_state:
+        return
+    
+    # Пропускаем команды (они обрабатываются отдельно)
+    if message.text.startswith('/'):
+        return
+    
+    tg_id = message.from_user.id
+    storage = Storage()
+    user = storage.get_user(tg_id)
+    
+    try:
+        # Если пользователь не зарегистрирован - показываем стартовый экран
+        if not user:
+            logger.info(f"👋 Новый пользователь {tg_id}, показываем стартовый экран")
+            
+            # Приветствуем нового пользователя
+            await message_manager.send_and_store(message.bot, message.chat.id, 
+                f"Привет! {WELCOME_TEXT}")
+            
+            # Показываем функциональные кнопки
+            keyboard = nav.create_simple_keyboard_with_back([
+                ("Присоединиться", "start_registration"),
+                ("У меня есть вопрос", "ask_question")
+            ], "go_back_to_start")
+            
+            await message_manager.send_and_store(message.bot, message.chat.id, 
+                SECOND_SCREEN_TEXT, reply_markup=keyboard)
+        else:
+            # Для зарегистрированных пользователей предлагаем использовать команды или кнопки
+            await message_manager.send_and_store(message.bot, message.chat.id, 
+                "Используй команду /start для работы с ботом или /status для проверки статуса.")
+                
+    except Exception as e:
+        logger.error(f"Ошибка при обработке сообщения от {tg_id}: {e}")
+        await message.reply("Произошла ошибка. Используй /start для работы с ботом.")
 
 
 @router.message(QuestionStates.waiting_question)
@@ -277,39 +357,39 @@ async def process_question(message: Message, state: FSMContext):
     await notify_admins_about_question(message.bot, question_id, message.from_user, message.text)
     
     await state.clear()
-    await message.reply(QUESTION_SENT_TEXT)
+    await message_manager.answer_and_store(message, QUESTION_SENT_TEXT)
 
 
 @router.message(RegistrationStates.waiting_full_name)
 async def process_full_name(message: Message, state: FSMContext):
     """Обработка ввода имени и фамилии."""
     if not message.text:
-        await message.reply("Пожалуйста, введи свои Имя и Фамилию текстом.")
+        await message_manager.answer_and_store(message, "Пожалуйста, введи свои Имя и Фамилию текстом.")
         return
     
     # Проверяем, что введено хотя бы два слова
     name_parts = message.text.strip().split()
     if len(name_parts) < 2:
-        await message.reply("Пожалуйста, введи и Имя, и Фамилию (два слова минимум).")
+        await message_manager.answer_and_store(message, "Пожалуйста, введи и Имя, и Фамилию (два слова минимум).")
         return
     
     await state.update_data(full_name=message.text.strip())
     await state.set_state(RegistrationStates.waiting_telegram_link)
-    await message.reply(TELEGRAM_LINK_TEXT)
+    await message_manager.answer_and_store(message, TELEGRAM_LINK_TEXT)
 
 
 @router.message(RegistrationStates.waiting_telegram_link)
 async def process_telegram_link(message: Message, state: FSMContext):
     """Обработка ввода ссылки на Telegram."""
     if not message.text:
-        await message.reply("Пожалуйста, введи ссылку на свой Telegram.")
+        await message_manager.answer_and_store(message, "Пожалуйста, введи ссылку на свой Telegram.")
         return
     
     telegram_link = message.text.strip()
     
     # Простая валидация
     if not (telegram_link.startswith('@') or 'telegram' in telegram_link or 't.me' in telegram_link):
-        await message.reply("Пожалуйста, введи корректную ссылку на Telegram (например: @username или https://t.me/username)")
+        await message_manager.answer_and_store(message, "Пожалуйста, введи корректную ссылку на Telegram (например: @username или https://t.me/username)")
         return
     
     # Получаем сохраненные данные
@@ -324,15 +404,15 @@ async def process_telegram_link(message: Message, state: FSMContext):
 
 Все верно?"""
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    keyboard = nav.create_keyboard_with_back([
         [
             InlineKeyboardButton(text="Да, присоединиться к команде", callback_data="confirm_registration"),
             InlineKeyboardButton(text="Исправить", callback_data="restart_registration")
         ]
-    ])
+    ], "go_back_from_registration")
     
     await state.update_data(telegram_link=telegram_link)
-    await message.reply(confirmation_text, reply_markup=keyboard)
+    await message_manager.answer_and_store(message, confirmation_text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data == "confirm_registration")
@@ -367,7 +447,7 @@ async def callback_confirm_registration(callback: CallbackQuery, state: FSMConte
         next_match_time=next_match_time
     )
     
-    await callback.message.edit_text(text)
+    await message_manager.edit_and_store(callback, text)
     await callback.answer("Добро пожаловать в очередь! 👋")
     await state.clear()
 
@@ -376,7 +456,8 @@ async def callback_confirm_registration(callback: CallbackQuery, state: FSMConte
 async def callback_restart_registration(callback: CallbackQuery, state: FSMContext):
     """Перезапуск регистрации."""
     await state.set_state(RegistrationStates.waiting_full_name)
-    await callback.message.edit_text(REGISTRATION_START_TEXT)
+    keyboard = nav.create_keyboard_with_back([], "go_back_from_registration")
+    await message_manager.edit_and_store(callback, REGISTRATION_START_TEXT, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -414,29 +495,29 @@ async def show_registered_user_start_screen(callback_or_message, tg_id: int):
                 queue_count=queue_count,
                 next_match_time=next_match_time
             )
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Проверить статус ожидания", callback_data="status")],
-                [InlineKeyboardButton(text="Выйти из ожидания объединения", callback_data="leave")],
-                [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-            ])
-            await callback_or_message.edit_text(text, reply_markup=keyboard)
+            keyboard = nav.create_simple_keyboard_with_back([
+                ("Проверить статус ожидания", "status"),
+                ("Выйти из ожидания объединения", "leave"),
+                ("У меня есть вопрос", "ask_question")
+            ], "go_back_to_start")
+            await message_manager.edit_and_store(callback_or_message, text, reply_markup=keyboard)
         else:
             # Пользователь зарегистрирован, но не в очереди - показываем возможность присоединиться
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Присоединиться", callback_data="start_registration")],
-                [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-            ])
-            await callback_or_message.edit_text(SECOND_SCREEN_TEXT, reply_markup=keyboard)
+            keyboard = nav.create_simple_keyboard_with_back([
+                ("Присоединиться", "start_registration"),
+                ("У меня есть вопрос", "ask_question")
+            ], "go_back_to_start")
+            await message_manager.edit_and_store(callback_or_message, SECOND_SCREEN_TEXT, reply_markup=keyboard)
     elif user['status'] == 'teamed':
         # Пользователь уже в команде
-        await callback_or_message.edit_text("Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
+        await message_manager.edit_and_store(callback_or_message, "Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
     else:
         # Пользователь зарегистрирован, но не в очереди - показываем возможность присоединиться
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Присоединиться", callback_data="start_registration")],
-            [InlineKeyboardButton(text="У меня есть вопрос", callback_data="ask_question")]
-        ])
-        await callback_or_message.edit_text(SECOND_SCREEN_TEXT, reply_markup=keyboard)
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("Присоединиться", "start_registration"),
+            ("У меня есть вопрос", "ask_question")
+        ], "go_back_to_start")
+        await message_manager.edit_and_store(callback_or_message, SECOND_SCREEN_TEXT, reply_markup=keyboard)
     
     return True
 

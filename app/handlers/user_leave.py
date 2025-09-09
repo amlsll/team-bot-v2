@@ -7,6 +7,8 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.filters import Command
 
 from ..services.storage import Storage
+from ..services.message_manager import message_manager
+from ..services.navigation import nav
 
 router = Router()
 
@@ -28,7 +30,7 @@ async def cmd_leave(message: Message):
     
     user = storage.get_user(tg_id)
     if not user:
-        await message.reply("Ты не зарегистрирован.")
+        await message_manager.answer_and_store(message, "Ты не зарегистрирован.")
         return
     
     # Проверяем, есть ли что покидать
@@ -36,18 +38,18 @@ async def cmd_leave(message: Message):
     in_team = user['status'] == 'teamed' and user.get('team_id')
     
     if not in_queue and not in_team:
-        await message.reply("Ты не в очереди и не в команде.")
+        await message_manager.answer_and_store(message, "Ты не в очереди и не в команде.")
         return
     
     # Показываем подтверждение
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    keyboard = nav.create_keyboard_with_back([
         [
             InlineKeyboardButton(text="Да", callback_data="leave_confirm"),
             InlineKeyboardButton(text="Нет", callback_data="leave_cancel")
         ]
-    ])
+    ], "go_back_to_start")
     
-    await message.reply(LEAVE_CONFIRM_TEXT, reply_markup=keyboard)
+    await message_manager.answer_and_store(message, LEAVE_CONFIRM_TEXT, reply_markup=keyboard)
 
 
 @router.callback_query(F.data == "leave_confirm")
@@ -61,7 +63,7 @@ async def callback_leave_confirm(callback: CallbackQuery):
     
     user = storage.get_user(tg_id)
     if not user:
-        await callback.message.edit_text("Ошибка: пользователь не найден.")
+        await message_manager.edit_and_store(callback, "Ошибка: пользователь не найден.")
         return
     
     # Убираем из очереди
@@ -73,16 +75,19 @@ async def callback_leave_confirm(callback: CallbackQuery):
         storage.remove_from_team(team_id, tg_id)
         storage.set_user_status(tg_id, 'waiting', None)
         
-        await callback.message.edit_text(LEAVE_SUCCESS_TEAM_TEXT)
+        keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+        await message_manager.edit_and_store(callback, LEAVE_SUCCESS_TEAM_TEXT, reply_markup=keyboard)
     elif removed_from_queue:
         # После выхода из очереди показываем стартовый экран
         from .user_start import show_registered_user_start_screen
         success = await show_registered_user_start_screen(callback.message, tg_id)
         if not success:
             # Если не удалось показать стартовый экран, показываем простое сообщение
-            await callback.message.edit_text(LEAVE_SUCCESS_QUEUE_TEXT)
+            keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+            await message_manager.edit_and_store(callback, LEAVE_SUCCESS_QUEUE_TEXT, reply_markup=keyboard)
     else:
-        await callback.message.edit_text("Ты не был в очереди или команде.")
+        keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+        await message_manager.edit_and_store(callback, "Ты не был в очереди или команде.", reply_markup=keyboard)
     
     await callback.answer()
 
@@ -90,5 +95,6 @@ async def callback_leave_confirm(callback: CallbackQuery):
 @router.callback_query(F.data == "leave_cancel")
 async def callback_leave_cancel(callback: CallbackQuery):
     """Обработчик отмены выхода."""
-    await callback.message.edit_text(LEAVE_CANCELLED_TEXT)
+    keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+    await message_manager.edit_and_store(callback, LEAVE_CANCELLED_TEXT, reply_markup=keyboard)
     await callback.answer()

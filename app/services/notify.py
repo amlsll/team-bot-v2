@@ -10,6 +10,7 @@ from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 from ..types import Team
 from .storage import Storage
+from .navigation import nav
 
 
 class NotificationService:
@@ -66,7 +67,7 @@ class NotificationService:
             [InlineKeyboardButton(text="Отказываюсь от участия", callback_data=f"team_decline:{team_id}")]
         ]
         
-        return InlineKeyboardMarkup(inline_keyboard=buttons)
+        return nav.create_keyboard_with_back(buttons, "go_back_to_start")
     
     async def send_team_card_to_members(self, team: Team) -> None:
         """
