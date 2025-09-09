@@ -136,13 +136,14 @@ async def callback_start_bot(callback: CallbackQuery):
     
     # Удаляем старое сообщение с картинкой и отправляем новое текстовое
     try:
-        await callback.message.delete()
-        sent_message = await callback.bot.send_message(
-            chat_id=callback.message.chat.id,
-            text=SECOND_SCREEN_TEXT,
-            reply_markup=keyboard
-        )
-        message_manager.store_message(callback.from_user.id, sent_message.message_id)
+        if callback.message and callback.message.chat:
+            await callback.message.delete()
+            sent_message = await callback.bot.send_message(
+                chat_id=callback.message.chat.id,
+                text=SECOND_SCREEN_TEXT,
+                reply_markup=keyboard
+            )
+            message_manager.store_message(callback.from_user.id, sent_message.message_id)
     except Exception as e:
         logger.error(f"Ошибка при переходе ко второму экрану: {e}")
         
