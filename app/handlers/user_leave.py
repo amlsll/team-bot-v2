@@ -47,7 +47,7 @@ async def cmd_leave(message: Message):
             InlineKeyboardButton(text="Да", callback_data="leave_confirm"),
             InlineKeyboardButton(text="Нет", callback_data="leave_cancel")
         ]
-    ], "go_back_to_start")
+    ], None)  # Убираем кнопку "Назад" для избежания рекурсии
     
     await message_manager.answer_and_store(message, LEAVE_CONFIRM_TEXT, reply_markup=keyboard)
 
@@ -75,7 +75,7 @@ async def callback_leave_confirm(callback: CallbackQuery):
         storage.remove_from_team(team_id, tg_id)
         storage.set_user_status(tg_id, 'waiting', None)
         
-        keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+        keyboard = nav.create_keyboard_with_back([], None)  # Убираем кнопку "Назад"
         await message_manager.edit_and_store(callback, LEAVE_SUCCESS_TEAM_TEXT, reply_markup=keyboard)
     elif removed_from_queue:
         # После выхода из очереди показываем стартовый экран
@@ -83,10 +83,10 @@ async def callback_leave_confirm(callback: CallbackQuery):
         success = await show_registered_user_start_screen(callback.message, tg_id)
         if not success:
             # Если не удалось показать стартовый экран, показываем простое сообщение
-            keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+            keyboard = nav.create_keyboard_with_back([], None)  # Убираем кнопку "Назад" 
             await message_manager.edit_and_store(callback, LEAVE_SUCCESS_QUEUE_TEXT, reply_markup=keyboard)
     else:
-        keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+        keyboard = nav.create_keyboard_with_back([], None)  # Убираем кнопку "Назад"
         await message_manager.edit_and_store(callback, "Ты не был в очереди или команде.", reply_markup=keyboard)
     
     await callback.answer()
@@ -95,6 +95,6 @@ async def callback_leave_confirm(callback: CallbackQuery):
 @router.callback_query(F.data == "leave_cancel")
 async def callback_leave_cancel(callback: CallbackQuery):
     """Обработчик отмены выхода."""
-    keyboard = nav.create_keyboard_with_back([], "go_back_to_start")
+    keyboard = nav.create_keyboard_with_back([], None)  # Убираем кнопку "Назад"
     await message_manager.edit_and_store(callback, LEAVE_CANCELLED_TEXT, reply_markup=keyboard)
     await callback.answer()

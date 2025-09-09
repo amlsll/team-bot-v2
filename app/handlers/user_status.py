@@ -46,7 +46,7 @@ async def cmd_status(message: Message):
             
             keyboard = nav.create_simple_keyboard_with_back([
                 ("Выйти из ожидания объединения", "leave")
-            ], "go_back_to_start")
+            ], None)  # Убираем кнопку "Назад" для пользователей в ожидании
             
             await message_manager.answer_and_store(message, text, reply_markup=keyboard)
     

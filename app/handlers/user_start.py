@@ -179,7 +179,7 @@ async def callback_start_registration(callback: CallbackQuery, state: FSMContext
             ("Проверить статус ожидания", "status"),
             ("Выйти из ожидания объединения", "leave"),
             ("У меня есть вопрос", "ask_question")
-        ], "go_back_to_start")
+        ], None)  # Убираем кнопку "Назад" для пользователей в ожидании
         
         await message_manager.edit_and_store(callback, text, reply_markup=keyboard)
         await callback.answer("Добро пожаловать обратно в очередь! 👋")
@@ -250,20 +250,32 @@ async def callback_go_back(callback: CallbackQuery, state: FSMContext):
         # Если пользователь уже зарегистрирован
         if user and user.get('full_name') and user.get('telegram_link'):
             if user.get('status') == 'waiting':
-                queue_count = len(storage.load()['queue'])
-                next_match_time = get_next_match_time()
-                text = JOIN_SUCCESS_TEXT.format(
-                    queue_count=queue_count,
-                    next_match_time=next_match_time
-                )
-                keyboard = nav.create_simple_keyboard_with_back([
-                    ("Проверить статус ожидания", "status"),
-                    ("Выйти из ожидания объединения", "leave"),
-                    ("У меня есть вопрос", "ask_question")
-                ], "go_back_to_start")
-                await message_manager.edit_and_store(callback, text, reply_markup=keyboard)
-                await callback.answer()
-                return
+                # Проверяем, действительно ли пользователь в очереди
+                in_queue = storage.get_queue_position(tg_id) != -1
+                if in_queue:
+                    queue_count = len(storage.load()['queue'])
+                    next_match_time = get_next_match_time()
+                    text = JOIN_SUCCESS_TEXT.format(
+                        queue_count=queue_count,
+                        next_match_time=next_match_time
+                    )
+                    keyboard = nav.create_simple_keyboard_with_back([
+                        ("Проверить статус ожидания", "status"),
+                        ("Выйти из ожидания объединения", "leave"),
+                        ("У меня есть вопрос", "ask_question")
+                    ], None)  # Убираем кнопку "Назад" для избежания рекурсии
+                    await message_manager.edit_and_store(callback, text, reply_markup=keyboard)
+                    await callback.answer()
+                    return
+                else:
+                    # Пользователь зарегистрирован но не в очереди - показываем возможность присоединиться
+                    keyboard = nav.create_simple_keyboard_with_back([
+                        ("Присоединиться", "start_registration"),
+                        ("У меня есть вопрос", "ask_question")
+                    ], None)  # Убираем кнопку "Назад" для избежания рекурсии
+                    await message_manager.edit_and_store(callback, SECOND_SCREEN_TEXT, reply_markup=keyboard)
+                    await callback.answer()
+                    return
             elif user.get('status') == 'teamed':
                 await message_manager.edit_and_store(callback, "Ты уже состоишь в команде! Используй /status для просмотра информации о команде.")
                 await callback.answer()
@@ -532,14 +544,14 @@ async def show_registered_user_start_screen(callback_or_message, tg_id: int):
                 ("Проверить статус ожидания", "status"),
                 ("Выйти из ожидания объединения", "leave"),
                 ("У меня есть вопрос", "ask_question")
-            ], "go_back_to_start")
+            ], None)  # Убираем кнопку "Назад" для пользователей в ожидании
             await message_manager.edit_and_store(callback_or_message, text, reply_markup=keyboard)
         else:
             # Пользователь зарегистрирован, но не в очереди - показываем возможность присоединиться
             keyboard = nav.create_simple_keyboard_with_back([
                 ("Присоединиться", "start_registration"),
                 ("У меня есть вопрос", "ask_question")
-            ], "go_back_to_start")
+            ], None)  # Убираем кнопку "Назад" для зарегистрированных пользователей
             await message_manager.edit_and_store(callback_or_message, SECOND_SCREEN_TEXT, reply_markup=keyboard)
     elif user.get('status') == 'teamed':
         # Пользователь уже в команде
@@ -549,7 +561,7 @@ async def show_registered_user_start_screen(callback_or_message, tg_id: int):
         keyboard = nav.create_simple_keyboard_with_back([
             ("Присоединиться", "start_registration"),
             ("У меня есть вопрос", "ask_question")
-        ], "go_back_to_start")
+        ], None)  # Убираем кнопку "Назад" для зарегистрированных пользователей
         await message_manager.edit_and_store(callback_or_message, SECOND_SCREEN_TEXT, reply_markup=keyboard)
     
     return True
