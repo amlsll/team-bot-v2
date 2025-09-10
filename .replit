@@ -1,15 +1,12 @@
-modules = ["python-3.9"]
-
-[nix]
-channel = "stable-22_11"
+modules = ["python-3.11"]
 
 [env]
 VIRTUAL_ENV = "/home/runner/${REPL_SLUG}/venv"
 PATH = "${VIRTUAL_ENV}/bin"
-PYTHONPATH = "$PYTHONHOME/lib/python3.9:${VIRTUAL_ENV}/lib/python3.9/site-packages"
+PYTHONPATH = "${VIRTUAL_ENV}/lib/python3.11/site-packages"
 
 [gitHubImport]
-requiredFiles = [".replit", "replit.nix", "requirements.txt"]
+requiredFiles = [".replit", "requirements.txt"]
 
 [deployment]
 run = ["sh", "-c", "python replit_start.py"]
