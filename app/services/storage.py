@@ -161,13 +161,45 @@ class Storage:
     def is_admin(self, tg_id: int) -> bool:
         """Проверяет, является ли пользователь админом."""
         store = self.load()
-        return store['admins'].get(tg_id, False)
+        admin_info = store['admins'].get(tg_id, False)
+        
+        # Поддерживаем старый формат (bool) и новый (dict)
+        if isinstance(admin_info, bool):
+            return admin_info
+        elif isinstance(admin_info, dict):
+            return admin_info.get('active', False)
+        else:
+            return False
     
     def set_admin(self, tg_id: int, is_admin: bool = True) -> None:
         """Устанавливает или снимает права админа."""
+        from datetime import datetime
         store = self.load()
-        store['admins'][tg_id] = is_admin
+        
+        if is_admin:
+            # Записываем время последнего входа
+            store['admins'][tg_id] = {
+                'active': True,
+                'last_login': datetime.now().isoformat(),
+                'login_count': store['admins'].get(tg_id, {}).get('login_count', 0) + 1 if isinstance(store['admins'].get(tg_id), dict) else 1
+            }
+        else:
+            # При выходе сохраняем информацию
+            if tg_id in store['admins']:
+                if isinstance(store['admins'][tg_id], dict):
+                    store['admins'][tg_id]['active'] = False
+                    store['admins'][tg_id]['last_logout'] = datetime.now().isoformat()
+                else:
+                    # Если старый формат (bool), удаляем
+                    del store['admins'][tg_id]
+            
         self.save(store)
+    
+    def get_admin_sessions(self) -> dict:
+        """Возвращает информацию о всех админских сессиях."""
+        store = self.load()
+        return {tg_id: info for tg_id, info in store['admins'].items() 
+                if isinstance(info, dict) and info.get('active', False)}
     
     def get_queue_usernames(self, limit: int = 10) -> List[str]:
         """Возвращает список username первых пользователей в очереди."""
