@@ -134,6 +134,17 @@ async def show_admin_panel(bot, chat_id: int, user_id: int):
 @router.callback_query(F.data == "admin_stats")
 async def callback_admin_stats(callback: CallbackQuery):
     """Кнопка статистики."""
+    user_id = callback.from_user.id if callback.from_user else None
+    import logging
+    logging.error(f"🔍 ОТЛАДКА admin_stats: user_id={user_id}")
+    
+    # Проверяем права напрямую
+    from ..services.storage import Storage
+    storage = Storage()
+    data = storage.load()
+    logging.error(f"🔍 ОТЛАДКА: admins в storage = {data.get('admins', {})}")
+    logging.error(f"🔍 ОТЛАДКА: is_admin({user_id}) = {is_admin(user_id) if user_id else False}")
+    
     if not callback.from_user or not is_admin(callback.from_user.id):
         await callback.answer("Нет прав доступа", show_alert=True)
         return
