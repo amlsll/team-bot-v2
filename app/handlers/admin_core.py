@@ -41,7 +41,7 @@ def get_admin_panel_text(user_id: int) -> str:
     else:
         login_str = 'неизвестно'
     
-    text = f"""👑 **Панель администратора**
+    text = f"""👑 <b>Панель администратора</b>
 
 🔐 Вы вошли в {login_str} (сессия #{login_count})
 👥 Активных админов: {len(sessions)}
@@ -50,7 +50,7 @@ def get_admin_panel_text(user_id: int) -> str:
     
     return text
 
-ADMIN_PANEL_TEXT = """👑 **Панель администратора**
+ADMIN_PANEL_TEXT = """👑 <b>Панель администратора</b>
 
 Выберите действие:"""
 
