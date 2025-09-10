@@ -13,11 +13,7 @@ run = ["sh", "-c", "python replit_start.py"]
 
 [[ports]]
 localPort = 3000
-externalPort = 80
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
+externalPort = 3000
 
 [languages.python3]
 pattern = "**/*.py"
@@ -49,7 +45,7 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python replit_start.py"
-waitForPort = 8080
+waitForPort = 3000
 
 [workflows.workflow.metadata]
 outputType = "console"

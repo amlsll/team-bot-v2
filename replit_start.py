@@ -65,7 +65,7 @@ def setup_replit_environment():
     use_webhook = os.getenv('USE_WEBHOOK', 'true').lower() == 'true'
     os.environ['USE_WEBHOOK'] = 'true' if use_webhook else 'false'
     os.environ['WEBHOOK_URL'] = webhook_url
-    os.environ['PORT'] = '8080'
+    os.environ['PORT'] = '3000'  # Используем порт 3000 который маппится на externalPort 80
     
     use_webhook_display = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
     logger.info(f"✅ Режим: {'webhook' if use_webhook_display else 'polling'}")
