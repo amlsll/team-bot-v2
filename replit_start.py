@@ -77,37 +77,45 @@ async def main():
     """Главная функция запуска для Replit."""
     logger.info("🚀 Запуск team-bot для Replit...")
     
+    # Защита от множественных экземпляров
     try:
-        # Настраиваем окружение для Replit
-        webhook_url = setup_replit_environment()
+        from app.services.process_lock import ProcessLock
         
-        # Проверяем режим работы
-        use_webhook = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
-        
-        if use_webhook:
-            logger.info("🌐 Запуск в webhook режиме...")
-            # Запускаем webhook сервер  
-            from aiohttp import web
-            from app.__main__ import webhook_main
+        with ProcessLock("team_bot_replit") as lock:
+            # Настраиваем окружение для Replit
+            webhook_url = setup_replit_environment()
             
-            app, port = await webhook_main()
-            runner = web.AppRunner(app)
-            await runner.setup()
+            # Проверяем режим работы
+            use_webhook = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
             
-            site = web.TCPSite(runner, '0.0.0.0', port)
-            await site.start()
-            
-            logger.info(f"🚀 Webhook сервер запущен на 0.0.0.0:{port}")
-            
-            # Ждем бесконечно
-            while True:
-                await asyncio.sleep(3600)
-        else:
-            logger.info("📡 Запуск в polling режиме...")
-            # Запускаем в polling режиме
-            from app.__main__ import polling_main
-            await polling_main()
-            
+            if use_webhook:
+                logger.info("🌐 Запуск в webhook режиме...")
+                # Запускаем webhook сервер  
+                from aiohttp import web
+                from app.__main__ import webhook_main
+                
+                app, port = await webhook_main()
+                runner = web.AppRunner(app)
+                await runner.setup()
+                
+                site = web.TCPSite(runner, '0.0.0.0', port)
+                await site.start()
+                
+                logger.info(f"🚀 Webhook сервер запущен на 0.0.0.0:{port}")
+                
+                # Ждем бесконечно
+                while True:
+                    await asyncio.sleep(3600)
+            else:
+                logger.info("📡 Запуск в polling режиме...")
+                # Запускаем в polling режиме
+                from app.__main__ import polling_main
+                await polling_main()
+    
+    except RuntimeError as e:
+        logger.error(f"❌ {e}")
+        logger.info("💡 Для исправления остановите все экземпляры бота и перезапустите")
+        return 1
     except KeyboardInterrupt:
         logger.info("🔴 Получен сигнал прерывания")
         return 0

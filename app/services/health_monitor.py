@@ -20,7 +20,7 @@ logger = get_logger('health_monitor')
 class HealthStatus:
     """Статус здоровья компонента."""
     
-    def __init__(self, name: str, status: str, message: str = "", details: Dict[str, Any] = None):
+    def __init__(self, name: str, status: str, message: str = "", details: Optional[Dict[str, Any]] = None):
         self.name = name
         self.status = status  # 'healthy', 'warning', 'critical'
         self.message = message
@@ -39,10 +39,10 @@ class HealthMonitor:
         self.running = False
         self.check_interval = 60  # секунд
         self.thresholds = {
-            'memory_warning': 85,    # % использования памяти
+            'memory_warning': 90,    # % использования памяти (повышено для Replit)
             'memory_critical': 95,
-            'cpu_warning': 80,       # % использования CPU
-            'cpu_critical': 90,
+            'cpu_warning': 85,       # % использования CPU (повышено для Replit)
+            'cpu_critical': 95,
             'disk_warning': 85,      # % использования диска
             'disk_critical': 95,
             'response_warning': 2.0, # секунды
