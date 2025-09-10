@@ -147,6 +147,8 @@ async def callback_admin_stats(callback: CallbackQuery):
         await callback.answer()
         
     except Exception as e:
+        import logging
+        logging.error(f"❌ Ошибка в admin_stats callback: {e}")
         await callback.answer(f"Ошибка: {e}", show_alert=True)
 
 
