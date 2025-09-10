@@ -12,10 +12,8 @@ from ..services.storage import Storage
 router = Router()
 
 
-@router.message(Command("adm_stats"))
-@require_admin
-async def cmd_adm_stats(message: Message):
-    """Админская команда для получения сводной статистики."""
+async def get_stats_response():
+    """Получает текст статистики для отображения."""
     storage = Storage()
     
     # Получаем основную статистику
@@ -39,4 +37,11 @@ async def cmd_adm_stats(message: Message):
     else:
         response += "👥 **Очередь пуста**\n"
     
+    return response
+
+@router.message(Command("adm_stats"))
+@require_admin
+async def cmd_adm_stats(message: Message):
+    """Админская команда для получения сводной статистики."""
+    response = await get_stats_response()
     await message.reply(response)

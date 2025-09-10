@@ -139,20 +139,11 @@ async def callback_admin_stats(callback: CallbackQuery):
         return
     
     try:
-        from .admin_stats import cmd_adm_stats
-        # Создаем mock сообщение для вызова команды
-        class MockMessage:
-            def __init__(self, callback_query):
-                self.from_user = callback_query.from_user
-                self.chat = callback_query.message.chat
-                self.text = "/adm_stats"
-                self.bot = callback_query.bot
-            
-            async def reply(self, text, **kwargs):
-                return await message_manager.edit_and_store(callback, text, **kwargs)
+        from .admin_stats import get_stats_response
         
-        mock_message = MockMessage(callback)
-        await cmd_adm_stats(mock_message)
+        # Получаем текст статистики напрямую
+        response = await get_stats_response()
+        await message_manager.edit_and_store(callback, response)
         await callback.answer()
         
     except Exception as e:
