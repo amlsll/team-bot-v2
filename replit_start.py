@@ -54,15 +54,16 @@ def setup_replit_environment():
         repl_owner = os.getenv('REPL_OWNER', 'user')
         
         if replit_domain:
-            webhook_url = f"https://{replit_domain}"
+            webhook_url = f"https://{replit_domain}/webhook"
             logger.info(f"✅ Автоматически определен Webhook URL: {webhook_url}")
         else:
             # Формируем webhook URL для Replit
-            webhook_url = f"https://{repl_slug}.{repl_owner}.repl.co"
+            webhook_url = f"https://{repl_slug}.{repl_owner}.repl.co/webhook"
             logger.info(f"✅ Сгенерированный Webhook URL: {webhook_url}")
     
-    # ВРЕМЕННО: polling для тестирования нового интерфейса  
-    os.environ['USE_WEBHOOK'] = 'false'
+    # Настройка режима работы: webhook по умолчанию для стабильности
+    use_webhook = os.getenv('USE_WEBHOOK', 'true').lower() == 'true'
+    os.environ['USE_WEBHOOK'] = 'true' if use_webhook else 'false'
     os.environ['WEBHOOK_URL'] = webhook_url
     os.environ['PORT'] = '8080'
     

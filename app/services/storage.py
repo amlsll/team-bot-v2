@@ -50,15 +50,17 @@ class Storage:
     def enqueue(self, tg_id: int) -> None:
         """Добавляет пользователя в очередь, если его там нет."""
         store = self.load()
-        if tg_id not in store['queue']:
-            store['queue'].append(tg_id)
+        tg_id_str = str(tg_id)
+        if tg_id_str not in store['queue']:
+            store['queue'].append(tg_id_str)
             self.save(store)
     
     def remove_from_queue(self, tg_id: int) -> bool:
         """Удаляет пользователя из очереди. Возвращает True, если был удален."""
         store = self.load()
-        if tg_id in store['queue']:
-            store['queue'].remove(tg_id)
+        tg_id_str = str(tg_id)
+        if tg_id_str in store['queue']:
+            store['queue'].remove(tg_id_str)
             self.save(store)
             return True
         return False
@@ -136,7 +138,7 @@ class Storage:
         """Возвращает позицию пользователя в очереди (0-based). -1 если не в очереди."""
         store = self.load()
         try:
-            return store['queue'].index(tg_id)
+            return store['queue'].index(str(tg_id))
         except ValueError:
             return -1
     

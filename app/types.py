@@ -42,10 +42,11 @@ class Question(TypedDict):
 
 class Store(TypedDict):
     """Главная модель хранилища данных."""
-    users: Dict[int, User]
-    queue: List[int]
+    users: Dict[str, User]  # используем str(tg_id) как ключи
+    queue: List[str]  # список строковых tg_id  
     teams: Dict[str, Team]
     counters: Dict[str, int]  # {"teamSeq": 0}
-    admins: Dict[int, bool]
+    admins: Dict[str, dict]  # строковые tg_id с метаданными
     questions: Dict[str, Question]  # вопросы от пользователей
     next_match_time: Optional[str]  # время следующего автоматического объединения
+    user_messages: Optional[Dict[str, List[int]]]  # сообщения пользователей

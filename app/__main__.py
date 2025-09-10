@@ -96,18 +96,26 @@ async def main():
     """Главная функция запуска."""
     logger.info("🚀 Запуск team-bot...")
     
+    # Защита от множественных экземпляров
+    from .services.process_lock import ProcessLock
+    
     try:
-        use_webhook = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
-        logger.info(f"Моде работы: {'webhook' if use_webhook else 'polling'}")
-        
-        if use_webhook:
-            app, port = await webhook_main()
-            from aiohttp import web
-            logger.info(f"🌐 Запуск webhook сервера на порту {port}")
-            web.run_app(app, host='0.0.0.0', port=port)
-        else:
-            await polling_main()
+        with ProcessLock("team_bot") as lock:
+            use_webhook = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
+            logger.info(f"Моде работы: {'webhook' if use_webhook else 'polling'}")
             
+            if use_webhook:
+                app, port = await webhook_main()
+                from aiohttp import web
+                logger.info(f"🌐 Запуск webhook сервера на порту {port}")
+                web.run_app(app, host='0.0.0.0', port=port)
+            else:
+                await polling_main()
+            
+    except RuntimeError as e:
+        logger.error(f"❌ {e}")
+        logger.info("💡 Для исправления остановите все экземпляры бота и перезапустите")
+        sys.exit(1)
     except KeyboardInterrupt:
         logger.info("🔴 Получен сигнал прерывания")
     except Exception as e:
