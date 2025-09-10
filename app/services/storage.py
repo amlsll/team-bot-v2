@@ -161,7 +161,8 @@ class Storage:
     def is_admin(self, tg_id: int) -> bool:
         """Проверяет, является ли пользователь админом."""
         store = self.load()
-        admin_info = store['admins'].get(tg_id, False)
+        # Преобразуем tg_id в строку, так как JSON ключи всегда строки
+        admin_info = store['admins'].get(str(tg_id), False)
         
         # Поддерживаем старый формат (bool) и новый (dict)
         if isinstance(admin_info, bool):
@@ -178,20 +179,21 @@ class Storage:
         
         if is_admin:
             # Записываем время последнего входа
-            store['admins'][tg_id] = {
+            store['admins'][str(tg_id)] = {
                 'active': True,
                 'last_login': datetime.now().isoformat(),
-                'login_count': store['admins'].get(tg_id, {}).get('login_count', 0) + 1 if isinstance(store['admins'].get(tg_id), dict) else 1
+                'login_count': store['admins'].get(str(tg_id), {}).get('login_count', 0) + 1 if isinstance(store['admins'].get(str(tg_id)), dict) else 1
             }
         else:
             # При выходе сохраняем информацию
-            if tg_id in store['admins']:
-                if isinstance(store['admins'][tg_id], dict):
-                    store['admins'][tg_id]['active'] = False
-                    store['admins'][tg_id]['last_logout'] = datetime.now().isoformat()
+            tg_id_str = str(tg_id)
+            if tg_id_str in store['admins']:
+                if isinstance(store['admins'][tg_id_str], dict):
+                    store['admins'][tg_id_str]['active'] = False
+                    store['admins'][tg_id_str]['last_logout'] = datetime.now().isoformat()
                 else:
                     # Если старый формат (bool), удаляем
-                    del store['admins'][tg_id]
+                    del store['admins'][tg_id_str]
             
         self.save(store)
     
