@@ -8,6 +8,8 @@ import os
 import sys
 import asyncio
 import logging
+import aiohttp
+import json
 from dotenv import load_dotenv
 
 # Загружаем переменные окружения
@@ -73,6 +75,92 @@ def setup_replit_environment():
     
     return webhook_url
 
+
+async def verify_and_update_webhook(webhook_url: str) -> bool:
+    """
+    Проверяет текущий webhook URL в Telegram и обновляет его при необходимости.
+    
+    Returns:
+        bool: True если webhook корректно настроен, False если произошла ошибка
+    """
+    bot_token = os.getenv('BOT_TOKEN')
+    if not bot_token:
+        logger.error("❌ BOT_TOKEN недоступен для проверки webhook")
+        return False
+    
+    try:
+        # Проверяем текущий webhook
+        async with aiohttp.ClientSession() as session:
+            # Получаем информацию о текущем webhook
+            get_url = f"https://api.telegram.org/bot{bot_token}/getWebhookInfo"
+            async with session.get(get_url) as response:
+                if response.status != 200:
+                    logger.error(f"❌ Ошибка при получении webhook info: {response.status}")
+                    return False
+                
+                data = await response.json()
+                if not data.get('ok'):
+                    logger.error(f"❌ Telegram API ошибка: {data.get('description')}")
+                    return False
+                
+                webhook_info = data.get('result', {})
+                current_url = webhook_info.get('url')
+                pending_count = webhook_info.get('pending_update_count', 0)
+                last_error = webhook_info.get('last_error_message')
+                
+                logger.info(f"🔍 Текущий webhook: {current_url or 'не установлен'}")
+                if pending_count > 0:
+                    logger.warning(f"⚠️ Ожидающих обновлений: {pending_count}")
+                if last_error:
+                    logger.warning(f"⚠️ Последняя ошибка: {last_error}")
+                
+                # Проверяем, нужно ли обновлять webhook
+                if current_url == webhook_url:
+                    logger.info("✅ Webhook URL корректен, обновление не требуется")
+                    return True
+                
+                # Обновляем webhook URL
+                logger.info(f"🔄 Обновляем webhook URL: {current_url} → {webhook_url}")
+                set_url = f"https://api.telegram.org/bot{bot_token}/setWebhook"
+                set_data = {
+                    'url': webhook_url,
+                    'allowed_updates': ['message', 'callback_query']
+                }
+                
+                async with session.post(set_url, data=set_data) as set_response:
+                    if set_response.status != 200:
+                        logger.error(f"❌ Ошибка при установке webhook: {set_response.status}")
+                        return False
+                    
+                    set_result = await set_response.json()
+                    if not set_result.get('ok'):
+                        logger.error(f"❌ Ошибка установки webhook: {set_result.get('description')}")
+                        return False
+                    
+                    logger.info("✅ Webhook URL успешно обновлен")
+                    
+                    # Повторная проверка
+                    async with session.get(get_url) as verify_response:
+                        if verify_response.status == 200:
+                            verify_data = await verify_response.json()
+                            if verify_data.get('ok'):
+                                verify_info = verify_data.get('result', {})
+                                new_url = verify_info.get('url')
+                                new_pending = verify_info.get('pending_update_count', 0)
+                                
+                                logger.info(f"🔍 Проверка: webhook установлен на {new_url}")
+                                if new_pending > 0:
+                                    logger.info(f"📬 Обрабатываем {new_pending} ожидающих обновлений")
+                    
+                    return True
+                    
+    except aiohttp.ClientError as e:
+        logger.error(f"❌ Сетевая ошибка при работе с webhook: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Непредвиденная ошибка при проверке webhook: {e}")
+        return False
+
 async def main():
     """Главная функция запуска для Replit."""
     logger.info("🚀 Запуск team-bot для Replit...")
@@ -87,6 +175,15 @@ async def main():
             
             # Проверяем режим работы
             use_webhook = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
+            
+            # Автоматическая проверка и обновление webhook при необходимости
+            if use_webhook:
+                logger.info("🔍 Проверяем и обновляем webhook URL...")
+                webhook_ok = await verify_and_update_webhook(webhook_url)
+                if not webhook_ok:
+                    logger.warning("⚠️ Проблемы с webhook, но продолжаем запуск...")
+                else:
+                    logger.info("✅ Webhook готов к работе")
             
             if use_webhook:
                 logger.info("🌐 Запуск в webhook режиме...")

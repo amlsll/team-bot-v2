@@ -6,10 +6,14 @@ import asyncio
 import time
 import threading
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from aiogram import Bot
 import psutil
 import os
 from pathlib import Path
+import aiohttp
 
 from .logger import get_logger, bot_logger, get_metrics
 from .storage import storage
@@ -31,7 +35,7 @@ class HealthStatus:
 class HealthMonitor:
     """Мониторинг состояния бота."""
     
-    def __init__(self, bot=None):
+    def __init__(self, bot: Optional["Bot"] = None):
         self.bot = bot
         self.checks = {}
         self.history = []
@@ -49,6 +53,9 @@ class HealthMonitor:
             'response_critical': 5.0,
             'error_rate_warning': 0.05,  # 5% ошибок
             'error_rate_critical': 0.15, # 15% ошибок
+            'webhook_pending_warning': 10,   # Ожидающих обновлений
+            'webhook_pending_critical': 50,  # Критическое количество
+            'webhook_error_age_hours': 1,    # Возраст последней ошибки в часах
         }
         
     async def check_bot_connection(self) -> HealthStatus:
@@ -313,6 +320,153 @@ class HealthMonitor:
                 f'Ошибка при проверке логов: {str(e)}'
             )
     
+    async def check_webhook_health(self) -> HealthStatus:
+        """Проверяет состояние webhook и при необходимости восстанавливает его."""
+        try:
+            if not self.bot:
+                return HealthStatus(
+                    'webhook_health', 
+                    'critical', 
+                    'Bot instance not available for webhook check'
+                )
+            
+            # Проверяем, работает ли бот в webhook режиме
+            use_webhook = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
+            if not use_webhook:
+                return HealthStatus(
+                    'webhook_health',
+                    'healthy',
+                    'Бот работает в polling режиме, webhook не используется'
+                )
+            
+            # Получаем информацию о webhook
+            start_time = time.time()
+            webhook_info = await self.bot.get_webhook_info()
+            response_time = time.time() - start_time
+            
+            current_url = webhook_info.url
+            pending_count = webhook_info.pending_update_count
+            last_error_date = webhook_info.last_error_date
+            last_error_message = webhook_info.last_error_message
+            
+            # Определяем ожидаемый webhook URL
+            expected_url = os.getenv('WEBHOOK_URL', '')
+            
+            issues = []
+            auto_recovery_attempted = False
+            
+            # Проверяем соответствие URL
+            if not current_url:
+                issues.append("Webhook URL не установлен")
+            elif current_url != expected_url and expected_url:
+                issues.append(f"Webhook URL не соответствует ожидаемому")
+                # Попытка автовосстановления
+                try:
+                    await self._attempt_webhook_recovery(expected_url)
+                    auto_recovery_attempted = True
+                    issues.append("Выполнена попытка автовосстановления URL")
+                except Exception as e:
+                    issues.append(f"Ошибка автовосстановления: {str(e)}")
+            
+            # Проверяем количество ожидающих обновлений
+            if pending_count >= self.thresholds['webhook_pending_critical']:
+                issues.append(f"Критическое количество ожидающих обновлений: {pending_count}")
+            elif pending_count >= self.thresholds['webhook_pending_warning']:
+                issues.append(f"Много ожидающих обновлений: {pending_count}")
+            
+            # Проверяем последние ошибки  
+            error_age_hours = None
+            if last_error_date and last_error_message:
+                # last_error_date может быть datetime или timestamp
+                if hasattr(last_error_date, 'timestamp'):
+                    # Это datetime объект
+                    error_timestamp = float(last_error_date.timestamp())
+                else:
+                    # Это уже timestamp
+                    error_timestamp = float(last_error_date)
+                    
+                error_age_hours = (time.time() - error_timestamp) / 3600
+                if error_age_hours <= self.thresholds['webhook_error_age_hours']:
+                    # Проверяем тип ошибки
+                    if '503' in last_error_message or '502' in last_error_message:
+                        issues.append(f"Недавняя критическая ошибка webhook: {last_error_message}")
+                        # Попытка автовосстановления при серверных ошибках
+                        if not auto_recovery_attempted and expected_url:
+                            try:
+                                await self._attempt_webhook_recovery(expected_url)
+                                auto_recovery_attempted = True
+                                issues.append("Выполнена попытка автовосстановления после серверной ошибки")
+                            except Exception as e:
+                                issues.append(f"Ошибка автовосстановления: {str(e)}")
+                    elif '404' in last_error_message:
+                        issues.append(f"Ошибка 404 в webhook (возможно изменился домен): {last_error_message}")
+                    else:
+                        issues.append(f"Недавняя ошибка webhook: {last_error_message}")
+            
+            # Определяем общий статус
+            if any('Критическое' in issue or '503' in issue or '502' in issue for issue in issues):
+                status = 'critical'
+                message = 'Критические проблемы с webhook'
+            elif issues:
+                status = 'warning'
+                message = 'Проблемы с webhook обнаружены'
+            else:
+                status = 'healthy'
+                message = 'Webhook работает нормально'
+            
+            return HealthStatus(
+                'webhook_health',
+                status,
+                message,
+                {
+                    'current_url': current_url,
+                    'expected_url': expected_url,
+                    'pending_count': pending_count,
+                    'last_error_message': last_error_message,
+                    'last_error_age_hours': round(error_age_hours, 2) if error_age_hours is not None else None,
+                    'response_time': round(response_time, 3),
+                    'issues': issues,
+                    'auto_recovery_attempted': auto_recovery_attempted,
+                    'webhook_ip': webhook_info.ip_address,
+                    'max_connections': webhook_info.max_connections
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Ошибка проверки webhook: {e}")
+            return HealthStatus(
+                'webhook_health',
+                'critical',
+                f'Не удалось проверить состояние webhook: {str(e)}'
+            )
+    
+    async def _attempt_webhook_recovery(self, expected_url: str) -> bool:
+        """
+        Попытка автоматического восстановления webhook URL.
+        
+        Returns:
+            bool: True если восстановление прошло успешно
+        """
+        try:
+            if not self.bot:
+                logger.error("❌ Bot instance недоступен для автовосстановления")
+                return False
+                
+            logger.info(f"🔄 Попытка автовосстановления webhook URL: {expected_url}")
+            
+            # Устанавливаем правильный webhook URL
+            await self.bot.set_webhook(
+                url=expected_url,
+                allowed_updates=['message', 'callback_query']
+            )
+            
+            logger.info("✅ Webhook URL автоматически восстановлен")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка автовосстановления webhook: {e}")
+            return False
+    
     async def run_all_checks(self) -> Dict[str, HealthStatus]:
         """Запускает все проверки здоровья."""
         checks = {}
@@ -320,6 +474,7 @@ class HealthMonitor:
         try:
             # Асинхронные проверки
             checks['bot_connection'] = await self.check_bot_connection()
+            checks['webhook_health'] = await self.check_webhook_health()
             
             # Синхронные проверки
             checks['system_resources'] = self.check_system_resources()
