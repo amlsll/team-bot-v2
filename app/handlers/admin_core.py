@@ -62,6 +62,9 @@ async def cmd_admin(message: Message):
         return
     
     # Извлекаем код из аргументов команды
+    if not message.text:
+        await message.reply("Использование: /admin <код>")
+        return
     args = message.text.split(maxsplit=1)
     if len(args) < 2:
         await message.reply("Использование: /admin <код>")
@@ -115,6 +118,7 @@ async def show_admin_panel(bot, chat_id: int, user_id: int):
     """Показывает админскую панель с кнопками управления."""
     keyboard = nav.create_simple_keyboard_with_back([
         ("📊 Статистика", "admin_stats"),
+        ("👥 Команды", "admin_teams_export"),
         ("🔄 Провести матчинг", "admin_match"),
         ("💥 Расформировать команду", "admin_rematch_input"),
         ("📢 Рассылка", "admin_broadcast_input"),
@@ -143,7 +147,13 @@ async def callback_admin_stats(callback: CallbackQuery):
         
         # Получаем текст статистики напрямую
         response = await get_stats_response()
-        await message_manager.edit_and_store(callback, response)
+        
+        # Добавляем кнопку "назад"
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("🏠 К панели", "back_to_admin_panel")
+        ], None)
+        
+        await message_manager.edit_and_store(callback, response, reply_markup=keyboard)
         await callback.answer()
         
     except Exception as e:
@@ -174,6 +184,22 @@ async def callback_admin_match(callback: CallbackQuery):
         
         mock_message = MockMessage(callback)
         await cmd_adm_match(mock_message)
+        
+        # Добавляем кнопку "назад"
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("🏠 К панели", "back_to_admin_panel")
+        ], None)
+        
+        # Добавляем кнопку "назад" к результату матчинга
+        # Так как матчинг уже выполнен, просто отправляем кнопку отдельно
+        # Проверяем наличие объектов перед использованием
+        if callback.bot and callback.message:
+            await callback.bot.send_message(
+                chat_id=callback.message.chat.id,
+                text="⬆️ Результат выше",
+                reply_markup=keyboard
+            )
+            
         await callback.answer()
         
     except Exception as e:
@@ -264,6 +290,19 @@ async def callback_admin_update_check(callback: CallbackQuery):
         
         mock_message = MockMessage(callback)
         await cmd_check_updates(mock_message)
+        
+        # Добавляем кнопку "назад"
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("🏠 К панели", "back_to_admin_panel")
+        ], None)
+        
+        # Проверяем наличие объектов перед использованием
+        if callback.bot and callback.message:
+            await callback.bot.send_message(
+                chat_id=callback.message.chat.id,
+                text="⬆️ Результат выше",
+                reply_markup=keyboard
+            )
         await callback.answer()
         
     except Exception as e:
@@ -292,6 +331,19 @@ async def callback_admin_update_apply(callback: CallbackQuery):
         
         mock_message = MockMessage(callback)
         await cmd_apply_updates(mock_message)
+        
+        # Добавляем кнопку "назад"
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("🏠 К панели", "back_to_admin_panel")
+        ], None)
+        
+        # Проверяем наличие объектов перед использованием
+        if callback.bot and callback.message:
+            await callback.bot.send_message(
+                chat_id=callback.message.chat.id,
+                text="⬆️ Результат выше",
+                reply_markup=keyboard
+            )
         await callback.answer()
         
     except Exception as e:
@@ -320,6 +372,19 @@ async def callback_admin_restart(callback: CallbackQuery):
         
         mock_message = MockMessage(callback)
         await cmd_restart_bot(mock_message)
+        
+        # Добавляем кнопку "назад"
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("🏠 К панели", "back_to_admin_panel")
+        ], None)
+        
+        # Проверяем наличие объектов перед использованием
+        if callback.bot and callback.message:
+            await callback.bot.send_message(
+                chat_id=callback.message.chat.id,
+                text="⬆️ Результат выше",
+                reply_markup=keyboard
+            )
         await callback.answer()
         
     except Exception as e:
@@ -348,6 +413,19 @@ async def callback_admin_system_status(callback: CallbackQuery):
         
         mock_message = MockMessage(callback)
         await cmd_bot_status(mock_message)
+        
+        # Добавляем кнопку "назад"
+        keyboard = nav.create_simple_keyboard_with_back([
+            ("🏠 К панели", "back_to_admin_panel")
+        ], None)
+        
+        # Проверяем наличие объектов перед использованием
+        if callback.bot and callback.message:
+            await callback.bot.send_message(
+                chat_id=callback.message.chat.id,
+                text="⬆️ Результат выше",
+                reply_markup=keyboard
+            )
         await callback.answer()
         
     except Exception as e:
@@ -404,6 +482,85 @@ async def callback_admin_sessions_view(callback: CallbackQuery):
         
     except Exception as e:
         await callback.answer(f"Ошибка: {e}", show_alert=True)
+
+
+@router.callback_query(F.data == "admin_teams_export")
+async def callback_admin_teams_export(callback: CallbackQuery):
+    """Кнопка экспорта команд в файл."""
+    if not callback.from_user or not is_admin(callback.from_user.id):
+        await callback.answer("Нет прав доступа", show_alert=True)
+        return
+    
+    try:
+        storage = Storage()
+        data = storage.load()
+        teams = data.get('teams', {})
+        
+        if not teams:
+            await message_manager.edit_and_store(
+                callback, 
+                "👥 **Активные команды**\n\nНет активных команд.",
+                reply_markup=nav.create_simple_keyboard_with_back([
+                    ("🏠 К панели", "back_to_admin_panel")
+                ], None)
+            )
+            await callback.answer()
+            return
+        
+        # Создаем текстовый файл со списком команд
+        from datetime import datetime
+        import io
+        
+        content = "# АКТИВНЫЕ КОМАНДЫ\n"
+        content += f"# Сгенерировано: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+        
+        for team_id, team in teams.items():
+            if team.get('status') == 'active':
+                content += f"КОМАНДА: {team_id}\n"
+                content += f"Создана: {team.get('created_at', 'неизвестно')}\n"
+                content += f"Участников: {len(team.get('members', []))}\n"
+                content += "Участники:\n"
+                
+                for member_id in team.get('members', []):
+                    users = data.get('users', {})
+                    user = users.get(str(member_id), {})
+                    full_name = user.get('full_name', 'неизвестно')
+                    telegram_link = user.get('telegram_link', 'неизвестно')
+                    username = user.get('username', '')
+                    content += f"  - {full_name} | {telegram_link} | @{username} | ID: {member_id}\n"
+                
+                content += "\n" + "="*50 + "\n\n"
+        
+        # Создаем файл в памяти
+        file_content = content.encode('utf-8')
+        file_name = f"teams_{datetime.now().strftime('%Y%m%d_%H%M')}.txt"
+        
+        # Отправляем файл
+        from aiogram.types import BufferedInputFile
+        document = BufferedInputFile(file_content, filename=file_name)
+        
+        # Проверяем наличие объектов перед использованием
+        if not callback.bot or not callback.message:
+            await callback.answer("Ошибка: неполные данные callback", show_alert=True)
+            return
+            
+        await callback.bot.send_document(
+            chat_id=callback.message.chat.id,
+            document=document,
+            caption="👥 **Список всех активных команд**"
+        )
+        
+        # Возвращаем в админ панель
+        await show_admin_panel(callback.bot, callback.message.chat.id, callback.from_user.id)
+        await callback.answer("Файл отправлен")
+        
+    except Exception as e:
+        import logging
+        logging.error(f"❌ Ошибка в admin_teams_export: {e}")
+        await callback.answer(f"Ошибка: {e}", show_alert=True)
+
+
+# Дублирование убрано - остается только первый обработчик выше
 
 
 @router.callback_query(F.data == "admin_logout")
@@ -617,34 +774,7 @@ async def callback_logout_all_sessions(callback: CallbackQuery):
         await callback.answer(f"Ошибка: {e}", show_alert=True)
 
 
-@router.callback_query(F.data == "back_to_admin_panel")
-async def callback_back_to_admin_panel(callback: CallbackQuery):
-    """Возврат к главной админской панели."""
-    if not callback.from_user or not is_admin(callback.from_user.id):
-        await callback.answer("Нет прав доступа", show_alert=True)
-        return
-    
-    try:
-        # Редактируем сообщение и показываем админскую панель
-        keyboard = nav.create_simple_keyboard_with_back([
-            ("📊 Статистика", "admin_stats"),
-            ("🔄 Провести матчинг", "admin_match"),
-            ("💥 Расформировать команду", "admin_rematch_input"),
-            ("📢 Рассылка", "admin_broadcast_input"),
-            ("🔄 Проверить обновления", "admin_update_check"),
-            ("🔧 Применить обновления", "admin_update_apply"),
-            ("🔄 Перезапустить бота", "admin_restart"),
-            ("ℹ️ Статус системы", "admin_system_status"),
-            ("🔐 Сессии", "admin_sessions_view"),
-            ("🚪 Выйти из админки", "admin_logout")
-        ], None)
-        
-        panel_text = get_admin_panel_text(callback.from_user.id)
-        await message_manager.edit_and_store(callback, panel_text, reply_markup=keyboard)
-        await callback.answer("🏠 Возвращаемся к панели управления")
-        
-    except Exception as e:
-        await callback.answer(f"Ошибка: {e}", show_alert=True)
+# Дублированный обработчик удален - используется единственный выше
 
 
 # Обработчики callback'ов от карточек команд
