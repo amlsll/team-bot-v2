@@ -15,10 +15,6 @@ run = ["sh", "-c", "python replit_start.py"]
 localPort = 3000
 externalPort = 80
 
-[[ports]]
-localPort = 36559
-externalPort = 3000
-
 [languages.python3]
 pattern = "**/*.py"
 
