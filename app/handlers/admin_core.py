@@ -765,7 +765,7 @@ async def callback_logout_all_sessions(callback: CallbackQuery):
         
         # Завершаем все сессии
         for tg_id in list(store['admins'].keys()):
-            storage.set_admin(tg_id, False)
+            storage.set_admin(int(tg_id), False)
         
         await message_manager.edit_and_store(callback, "🚪 Все админские сессии завершены.\n\nДля повторного входа используйте /admin <код>")
         await callback.answer("Все сессии завершены")
@@ -781,6 +781,8 @@ async def callback_logout_all_sessions(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("team_confirm:"))
 async def callback_team_confirm(callback: CallbackQuery):
     """Обработчик нажатия кнопки 'Я в команде ✅'."""
+    if not callback.data:
+        return
     team_id = callback.data.split(":", 1)[1]
     
     await callback.answer("Отлично! Удачи в команде! 🚀")
@@ -794,10 +796,14 @@ async def callback_team_problem(callback: CallbackQuery):
     if not callback.from_user:
         return
     
+    if not callback.data:
+        return
     team_id = callback.data.split(":", 1)[1]
     username = callback.from_user.username or "без_username"
     
     # Отправляем репорт модераторам
+    if not callback.bot:
+        return
     from ..services.notify import NotificationService
     notify_service = NotificationService(callback.bot)
     
@@ -809,3 +815,37 @@ async def callback_team_problem(callback: CallbackQuery):
         await callback.answer("Сообщение отправлено модераторам. Ожидайте ответа.")
     else:
         await callback.answer("Не удалось отправить сообщение. Обратитесь к организаторам напрямую.")
+
+
+# НЕДОСТАЮЩИЕ ОБРАБОТЧИКИ КНОПОК АДМИН-ПАНЕЛИ
+
+@router.callback_query(F.data == "back_to_admin_panel")
+async def callback_back_to_admin_panel(callback: CallbackQuery):
+    """Обработчик кнопки 'К панели' - возврат к главной админ-панели."""
+    if not callback.from_user or not is_admin(callback.from_user.id):
+        await callback.answer("Нет прав доступа", show_alert=True)
+        return
+    
+    try:
+        if not callback.message:
+            return
+        await show_admin_panel(callback.bot, callback.message.chat.id, callback.from_user.id)
+        await callback.answer()
+    except Exception as e:
+        await callback.answer(f"Ошибка: {e}", show_alert=True)
+
+
+@router.callback_query(F.data == "admin_menu")
+async def callback_admin_menu(callback: CallbackQuery):
+    """Обработчик кнопки 'Главная' - возврат к главной админ-панели.""" 
+    if not callback.from_user or not is_admin(callback.from_user.id):
+        await callback.answer("Нет прав доступа", show_alert=True)
+        return
+    
+    try:
+        if not callback.message:
+            return
+        await show_admin_panel(callback.bot, callback.message.chat.id, callback.from_user.id)
+        await callback.answer()
+    except Exception as e:
+        await callback.answer(f"Ошибка: {e}", show_alert=True)
