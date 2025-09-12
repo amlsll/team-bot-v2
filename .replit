@@ -9,11 +9,16 @@ PYTHONPATH = "${VIRTUAL_ENV}/lib/python3.11/site-packages"
 requiredFiles = [".replit", "requirements.txt"]
 
 [deployment]
-run = ["sh", "-c", "python replit_start.py"]
+run = ["python", "replit_start.py"]
+deploymentTarget = "vm"
 
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[[ports]]
+localPort = 41295
+externalPort = 3000
 
 [languages.python3]
 pattern = "**/*.py"
