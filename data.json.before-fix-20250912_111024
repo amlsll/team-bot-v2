@@ -1,0 +1,146 @@
+{
+  "users": {
+    "5991512320": {
+      "tg_id": 5991512320,
+      "status": "waiting",
+      "username": "itsvoytin",
+      "name": "алексей войтин",
+      "full_name": "гугл луков",
+      "telegram_link": "@itsvoytin",
+      "team_id": null
+    },
+    "133931104": {
+      "tg_id": 133931104,
+      "status": "waiting",
+      "username": "avoytin",
+      "name": "ăлексей войтин",
+      "full_name": "акк акков",
+      "telegram_link": "@itsvoytin",
+      "team_id": null
+    },
+    "700760200": {
+      "tg_id": 700760200,
+      "status": "teamed",
+      "username": "LevinAA_87",
+      "name": "Анна Лёвина",
+      "full_name": "Аня Лёвина",
+      "telegram_link": "@LevinAA_87",
+      "team_id": "C-1"
+    },
+    "471942270": {
+      "tg_id": 471942270,
+      "status": "teamed",
+      "username": "tatyana_vytuleva",
+      "name": "Татьяна Вытулева",
+      "full_name": "Татьяна Вытулева",
+      "telegram_link": "@tatyana_vytuleva",
+      "team_id": "C-1"
+    },
+    "983831169": {
+      "tg_id": 983831169,
+      "status": "teamed",
+      "username": "anastakho",
+      "name": "Анастасия Астахова",
+      "full_name": "Анастасия А",
+      "telegram_link": "@anastakho",
+      "team_id": "C-1"
+    },
+    "1120784430": {
+      "tg_id": 1120784430,
+      "status": "teamed",
+      "username": "mashoss",
+      "name": "Мария Зайцева",
+      "full_name": "Мария Зайцева",
+      "telegram_link": "@mashoss",
+      "team_id": "C-1"
+    }
+  },
+  "queue": [
+    "133931104",
+    "5991512320"
+  ],
+  "teams": {
+    "C-1": {
+      "id": "C-1",
+      "members": [
+        "133931104",
+        "5991512320",
+        "700760200",
+        "471942270",
+        "983831169",
+        "1120784430"
+      ],
+      "created_at": "2025-09-11T12:56:10.647857",
+      "status": "active"
+    }
+  },
+  "counters": {
+    "teamSeq": 1,
+    "questionSeq": 1
+  },
+  "admins": {
+    "133931104": {
+      "active": true,
+      "last_login": "2025-09-11T08:18:18.209196",
+      "login_count": 6
+    },
+    "5991512320": {
+      "active": true,
+      "last_login": "2025-09-12T11:08:45.804011",
+      "login_count": 5
+    },
+    "605352158": {
+      "active": true,
+      "last_login": "2025-09-11T12:56:04.305817",
+      "login_count": 3
+    }
+  },
+  "questions": {
+    "Q-1": {
+      "id": "Q-1",
+      "user_id": 5991512320,
+      "username": "itsvoytin",
+      "text": "хай",
+      "created_at": "2025-09-10T12:46:06.123053",
+      "answered": false,
+      "answer": null,
+      "answered_by": null,
+      "answered_at": null
+    }
+  },
+  "user_messages": {
+    "user_messages_5991512320": [
+      575
+    ],
+    "user_messages_133931104": [],
+    "user_messages_8222133560": [
+      562
+    ],
+    "user_messages_605352158": [
+      529,
+      572
+    ],
+    "user_messages_700760200": [
+      465
+    ],
+    "user_messages_471942270": [
+      485
+    ],
+    "user_messages_1056829811": [
+      540,
+      541,
+      542,
+      543,
+      544
+    ],
+    "user_messages_983831169": [
+      492
+    ],
+    "user_messages_1120784430": [
+      501
+    ],
+    "user_messages_354483736": [
+      538
+    ]
+  }
+}
