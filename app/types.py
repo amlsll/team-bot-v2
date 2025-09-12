@@ -50,3 +50,4 @@ class Store(TypedDict):
     questions: Dict[str, Question]  # вопросы от пользователей
     next_match_time: Optional[str]  # время следующего автоматического объединения
     user_messages: Optional[Dict[str, List[int]]]  # сообщения пользователей
+    cache: Optional[Dict[str, str]]  # кэш для file_id и других данных

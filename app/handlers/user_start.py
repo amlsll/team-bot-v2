@@ -82,7 +82,7 @@ async def cmd_start(message: Message, state: FSMContext):
         # Показываем главный экран с картинкой и кнопкой "Запустить бота"
         logger.info(f"📸 Показываем главный экран с новой картинкой пользователю {tg_id}")
         
-        # Используем новую картинку с котятами
+        # Используем новую картинку с котятами (оптимизированная версия)
         photo_path = "attached_assets/приветствие_1757674099596.jpg"
         
         # Создаем клавиатуру с кнопкой "Запустить бота"
@@ -91,18 +91,40 @@ async def cmd_start(message: Message, state: FSMContext):
             ("У меня есть вопрос", "ask_question")
         ], None)  # Нет кнопки "Назад" на главном экране
         
+        # Пытаемся использовать кэшированный file_id
+        stored_file_id = storage.get_cached_photo_file_id()
+        
         try:
-            # Пытаемся отправить фото
-            photo = FSInputFile(photo_path)
-            sent_message = await message.bot.send_photo(
-                chat_id=message.chat.id,
-                photo=photo,
-                caption=WELCOME_TEXT,
-                reply_markup=keyboard
-            )
-            message_manager.store_message(tg_id, sent_message.message_id)
-            logger.info(f"✅ Новая картинка отправлена успешно!")
-            return
+            if stored_file_id:
+                # Используем кэшированный file_id - БЫСТРО!
+                sent_message = await message.bot.send_photo(
+                    chat_id=message.chat.id,
+                    photo=stored_file_id,
+                    caption=WELCOME_TEXT,
+                    reply_markup=keyboard
+                )
+                message_manager.store_message(tg_id, sent_message.message_id)
+                logger.info(f"✅ Кэшированная картинка отправлена быстро!")
+                return
+            else:
+                # Первая отправка - загружаем файл и кэшируем file_id
+                photo = FSInputFile(photo_path)
+                sent_message = await message.bot.send_photo(
+                    chat_id=message.chat.id,
+                    photo=photo,
+                    caption=WELCOME_TEXT,
+                    reply_markup=keyboard
+                )
+                
+                # Сохраняем file_id для будущих быстрых отправок
+                if sent_message.photo:
+                    largest_photo = max(sent_message.photo, key=lambda p: p.file_size or 0)
+                    storage.cache_photo_file_id(largest_photo.file_id)
+                    logger.info(f"📸 Сохранен file_id для быстрых отправок: {largest_photo.file_id}")
+                
+                message_manager.store_message(tg_id, sent_message.message_id)
+                logger.info(f"✅ Новая картинка отправлена и закэширована!")
+                return
         except FileNotFoundError:
             # Если картинка не найдена, отправляем только текст
             logger.warning(f"⚠️ Картинка не найдена: {photo_path}")

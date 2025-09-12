@@ -19,6 +19,9 @@ class Storage:
         self.file_path = file_path
         self._lock = Lock()
         self._ensure_initialized()
+        
+        # Константы для кэширования файлов
+        self.CACHED_PHOTO_KEY = 'cached_welcome_photo_file_id'
     
     def _ensure_initialized(self) -> None:
         """Инициализирует файл хранилища, если он не существует."""
@@ -28,7 +31,8 @@ class Storage:
             'teams': {},
             'counters': {'teamSeq': 0},
             'admins': {},
-            'questions': {}
+            'questions': {},
+            'cache': {}  # Кэш для файлов и других данных
         }
         ensure_file_exists(self.file_path, default_store)
     
@@ -266,6 +270,23 @@ class Storage:
         """Получает вопрос по ID."""
         store = self.load()
         return store['questions'].get(question_id)
+    
+    def cache_photo_file_id(self, file_id: str) -> None:
+        """Сохраняет file_id картинки для быстрых отправок."""
+        store = self.load()
+        
+        # Обеспечиваем наличие cache секции
+        if 'cache' not in store:
+            store['cache'] = {}
+            
+        store['cache'][self.CACHED_PHOTO_KEY] = file_id
+        self.save(store)
+    
+    def get_cached_photo_file_id(self) -> Optional[str]:
+        """Получает кэшированный file_id картинки."""
+        store = self.load()
+        cache = store.get('cache', {})
+        return cache.get(self.CACHED_PHOTO_KEY)
 
 
 # Глобальный экземпляр для использования в других модулях

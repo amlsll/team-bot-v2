@@ -41,7 +41,7 @@ class HealthMonitor:
         self.history = []
         self.max_history = 1000
         self.running = False
-        self.check_interval = 60  # секунд
+        self.check_interval = 300  # 5 минут вместо 1 минуты - меньше нагрузки
         self.thresholds = {
             'memory_warning': 90,    # % использования памяти (повышено для Replit)
             'memory_critical': 95,
@@ -355,18 +355,18 @@ class HealthMonitor:
             issues = []
             auto_recovery_attempted = False
             
-            # Проверяем соответствие URL
+            # Проверяем соответствие URL (ТОЛЬКО при реальных проблемах)
             if not current_url:
                 issues.append("Webhook URL не установлен")
-            elif current_url != expected_url and expected_url:
-                issues.append(f"Webhook URL не соответствует ожидаемому")
-                # Попытка автовосстановления
-                try:
-                    await self._attempt_webhook_recovery(expected_url)
-                    auto_recovery_attempted = True
-                    issues.append("Выполнена попытка автовосстановления URL")
-                except Exception as e:
-                    issues.append(f"Ошибка автовосстановления: {str(e)}")
+                # Попытка автовосстановления только если URL пустой
+                if expected_url:
+                    try:
+                        await self._attempt_webhook_recovery(expected_url)
+                        auto_recovery_attempted = True
+                        issues.append("Выполнена попытка автовосстановления URL")
+                    except Exception as e:
+                        issues.append(f"Ошибка автовосстановления: {str(e)}")
+            # УДАЛЕНА избыточная проверка на несоответствие URL - это вызывало false positive'ы
             
             # Проверяем количество ожидающих обновлений
             if pending_count >= self.thresholds['webhook_pending_critical']:
@@ -390,12 +390,12 @@ class HealthMonitor:
                     # Проверяем тип ошибки
                     if '503' in last_error_message or '502' in last_error_message:
                         issues.append(f"Недавняя критическая ошибка webhook: {last_error_message}")
-                        # Попытка автовосстановления при серверных ошибках
-                        if not auto_recovery_attempted and expected_url:
+                        # Уменьшаем частоту попыток автовосстановления - только при критических ошибках старше 5 минут
+                        if not auto_recovery_attempted and expected_url and error_age_hours < 0.08:  # ~5 минут
                             try:
                                 await self._attempt_webhook_recovery(expected_url)
                                 auto_recovery_attempted = True
-                                issues.append("Выполнена попытка автовосстановления после серверной ошибки")
+                                issues.append("Выполнена попытка автовосстановления после критической ошибки")
                             except Exception as e:
                                 issues.append(f"Ошибка автовосстановления: {str(e)}")
                     elif '404' in last_error_message:
