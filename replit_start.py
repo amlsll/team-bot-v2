@@ -126,8 +126,8 @@ def setup_replit_environment():
             webhook_url = f"https://{repl_slug}.{repl_owner}.repl.co/webhook"
             logger.info(f"✅ Сгенерированный Webhook URL: {webhook_url}")
     
-    # Настройка режима работы: webhook по умолчанию для стабильности
-    use_webhook = os.getenv('USE_WEBHOOK', 'true').lower() == 'true'
+    # Настройка режима работы: polling по умолчанию для стабильности (временно)
+    use_webhook = os.getenv('USE_WEBHOOK', 'false').lower() == 'true'
     os.environ['USE_WEBHOOK'] = 'true' if use_webhook else 'false'
     os.environ['WEBHOOK_URL'] = webhook_url
     os.environ['PORT'] = '3000'  # Используем порт 3000 который маппится на externalPort 80
