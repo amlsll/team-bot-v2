@@ -51,7 +51,6 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python replit_start.py"
-waitForPort = 3000
 
 [workflows.workflow.metadata]
 outputType = "console"
