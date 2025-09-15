@@ -11,6 +11,9 @@ import logging
 import aiohttp
 import json
 from dotenv import load_dotenv
+from flask import Flask
+from threading import Thread
+import time
 
 # Загружаем переменные окружения
 load_dotenv()
@@ -23,6 +26,66 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ========================================
+# KEEP-ALIVE СЕРВЕР ДЛЯ ПРЕДОТВРАЩЕНИЯ ЗАСЫПАНИЯ
+# ========================================
+
+def create_keep_alive_server():
+    """Создает Flask сервер для поддержания активности Replit VM."""
+    app = Flask(__name__)
+    
+    @app.route('/')
+    def home():
+        """Главная страница Keep-Alive сервера."""
+        current_time = time.strftime('%Y-%m-%d %H:%M:%S')
+        return f"""
+        <html>
+        <head>
+            <title>Team Bot Keep-Alive</title>
+            <meta http-equiv="refresh" content="30">
+        </head>
+        <body>
+            <h1>🤖 Team Bot Keep-Alive Server</h1>
+            <p>✅ Bot is running and healthy!</p>
+            <p>🕐 Current time: {current_time}</p>
+            <p>🔄 This page auto-refreshes every 30 seconds</p>
+            <p>📡 Use this URL for UptimeRobot monitoring</p>
+        </body>
+        </html>
+        """
+    
+    @app.route('/health')
+    def health():
+        """Endpoint для проверки здоровья."""
+        return {
+            "status": "healthy",
+            "timestamp": time.time(),
+            "service": "telegram-bot-keep-alive"
+        }
+    
+    @app.route('/ping')
+    def ping():
+        """Простой ping endpoint."""
+        return "pong"
+    
+    # Отключаем логи Flask для чистоты вывода
+    import logging as flask_logging
+    flask_log = flask_logging.getLogger('werkzeug')
+    flask_log.setLevel(flask_logging.ERROR)
+    
+    return app
+
+
+def start_keep_alive_server():
+    """Запускает Keep-Alive сервер в отдельном треде."""
+    try:
+        app = create_keep_alive_server()
+        # Запускаем на порту 8080, чтобы не конфликтовать с основным webhook (3000)
+        app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+    except Exception as e:
+        logger.error(f"❌ Ошибка запуска Keep-Alive сервера: {e}")
 
 
 def setup_replit_environment():
@@ -164,6 +227,14 @@ async def verify_and_update_webhook(webhook_url: str) -> bool:
 async def main():
     """Главная функция запуска для Replit."""
     logger.info("🚀 Запуск team-bot для Replit...")
+    
+    # ========================================
+    # ЗАПУСК KEEP-ALIVE СЕРВЕРА
+    # ========================================
+    logger.info("🔄 Запуск Keep-Alive сервера...")
+    keep_alive_thread = Thread(target=start_keep_alive_server, daemon=True)
+    keep_alive_thread.start()
+    logger.info("✅ Keep-Alive сервер запущен на порту 8080")
     
     # Защита от множественных экземпляров
     try:

@@ -16,6 +16,14 @@ deploymentTarget = "vm"
 localPort = 3000
 externalPort = 80
 
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 45603
+externalPort = 3000
+
 [languages.python3]
 pattern = "**/*.py"
 
@@ -26,6 +34,7 @@ start = "pylsp"
 expertMode = true
 
 [nix]
+channel = "stable-25_05"
 
 [workflows]
 runButton = "Project"
