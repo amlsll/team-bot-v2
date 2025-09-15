@@ -43,24 +43,23 @@ async def cmd_adm_broadcast(message: Message):
 @router.callback_query(F.data.startswith("broadcast_waiting:"))
 async def callback_broadcast_waiting(callback: CallbackQuery):
     """Обработчик рассылки ожидающим в очереди."""
-    if not callback.message or not callback.message.reply_to_message:
-        # Пытаемся получить текст из исходного сообщения
-        if callback.message and "/adm_broadcast" in callback.message.text:
-            lines = callback.message.text.split('\n')
-            if len(lines) >= 3:
-                # Извлекаем текст между заголовком и "Выберите аудиторию"
-                broadcast_text = '\n'.join(lines[2:-2])
-            else:
-                await callback.answer("Ошибка: не удалось извлечь текст сообщения.")
-                return
+    # Извлекаем текст из исходного сообщения между "📢 **Рассылка сообщения:**" и "**Выберите аудиторию:**"
+    if callback.message and "📢 **Рассылка сообщения:**" in callback.message.text:
+        text = callback.message.text
+        start_marker = "📢 **Рассылка сообщения:**\n\n"
+        end_marker = "\n\n**Выберите аудиторию:**"
+        
+        start_idx = text.find(start_marker)
+        end_idx = text.find(end_marker)
+        
+        if start_idx != -1 and end_idx != -1:
+            broadcast_text = text[start_idx + len(start_marker):end_idx]
         else:
-            await callback.answer("Ошибка: исходное сообщение не найдено.")
+            await callback.answer("Ошибка: не удалось извлечь текст сообщения.")
             return
     else:
-        broadcast_text = getattr(callback.message.reply_to_message, '_broadcast_text', None)
-        if not broadcast_text:
-            await callback.answer("Ошибка: текст сообщения не найден.")
-            return
+        await callback.answer("Ошибка: исходное сообщение не найдено.")
+        return
     
     notify_service = NotificationService(callback.bot)
     sent_count = await notify_service.broadcast_to_waiting(broadcast_text)
@@ -74,24 +73,23 @@ async def callback_broadcast_waiting(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("broadcast_teams:"))
 async def callback_broadcast_teams(callback: CallbackQuery):
     """Обработчик рассылки участникам команд."""
-    if not callback.message or not callback.message.reply_to_message:
-        # Пытаемся получить текст из исходного сообщения
-        if callback.message and "/adm_broadcast" in callback.message.text:
-            lines = callback.message.text.split('\n')
-            if len(lines) >= 3:
-                # Извлекаем текст между заголовком и "Выберите аудиторию"
-                broadcast_text = '\n'.join(lines[2:-2])
-            else:
-                await callback.answer("Ошибка: не удалось извлечь текст сообщения.")
-                return
+    # Извлекаем текст из исходного сообщения между "📢 **Рассылка сообщения:**" и "**Выберите аудиторию:**"
+    if callback.message and "📢 **Рассылка сообщения:**" in callback.message.text:
+        text = callback.message.text
+        start_marker = "📢 **Рассылка сообщения:**\n\n"
+        end_marker = "\n\n**Выберите аудиторию:**"
+        
+        start_idx = text.find(start_marker)
+        end_idx = text.find(end_marker)
+        
+        if start_idx != -1 and end_idx != -1:
+            broadcast_text = text[start_idx + len(start_marker):end_idx]
         else:
-            await callback.answer("Ошибка: исходное сообщение не найдено.")
+            await callback.answer("Ошибка: не удалось извлечь текст сообщения.")
             return
     else:
-        broadcast_text = getattr(callback.message.reply_to_message, '_broadcast_text', None)
-        if not broadcast_text:
-            await callback.answer("Ошибка: текст сообщения не найден.")
-            return
+        await callback.answer("Ошибка: исходное сообщение не найдено.")
+        return
     
     notify_service = NotificationService(callback.bot)
     sent_count = await notify_service.broadcast_to_teams(broadcast_text)

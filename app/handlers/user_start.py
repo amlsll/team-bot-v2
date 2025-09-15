@@ -572,7 +572,7 @@ async def notify_admins_about_question(bot, question_id: str, user, question_tex
     store = storage.load()
     
     user_mention = f"@{user.username}" if user.username else f"ID {user.id}"
-    admin_text = f"📋 Новый вопрос от пользователя {user_mention}:\n\n{question_text}\n\n💬 Для ответа используй: /answer {question_id} <текст ответа>"
+    admin_text = f"📋 Новый вопрос от пользователя {user_mention}:\n\n{question_text}\n\n💬 Для ответа используй: /answer {question_id} ваш_ответ"
     
     for admin_id, is_admin in store['admins'].items():
         if is_admin:
