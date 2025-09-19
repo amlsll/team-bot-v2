@@ -70,7 +70,19 @@ class MatchScheduler:
     def get_next_match_time_str(self) -> str:
         """Возвращает строковое представление времени следующего объединения."""
         next_time = self.get_next_match_time()
-        return next_time.strftime("%d %B в %H:%M")
+        
+        # Русские названия месяцев
+        russian_months = {
+            1: "января", 2: "февраля", 3: "марта", 4: "апреля",
+            5: "мая", 6: "июня", 7: "июля", 8: "августа", 
+            9: "сентября", 10: "октября", 11: "ноября", 12: "декабря"
+        }
+        
+        day = next_time.day
+        month = russian_months[next_time.month]
+        time = next_time.strftime("%H:%M")
+        
+        return f"{day} {month} в {time}"
     
     async def _scheduler_loop(self):
         """Основной цикл планировщика."""
